@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 
+import '../../core/i18n.dart';
 import '../../models/app_settings.dart';
 import '../../services/autostart_service.dart';
 import '../../services/settings_service.dart';
@@ -53,9 +54,10 @@ class _SettingsDialogState extends State<_SettingsDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final lang = _working.language;
     final maxDialogHeight = MediaQuery.of(context).size.height * .65;
     return AlertDialog(
-      title: const Text('设置'),
+      title: Text(tr(lang, '设置', 'Settings')),
       content: ConstrainedBox(
         constraints: BoxConstraints(maxWidth: 420, maxHeight: maxDialogHeight),
         child: SingleChildScrollView(
@@ -68,17 +70,33 @@ class _SettingsDialogState extends State<_SettingsDialog> {
                 SwitchListTile(
                   value: _working.autoLaunch,
                   onChanged: (value) => setState(() => _working = _working.copyWith(autoLaunch: value)),
-                  title: const Text('开机自启动'),
-                  subtitle: const Text('适用于桌面端安装版本'),
+                  title: Text(tr(lang, '开机自启动', 'Launch at startup')),
+                  subtitle: Text(tr(lang, '适用于桌面端安装版本', 'For desktop installations only')),
+                ),
+                DropdownButtonFormField<AppLanguage>(
+                  initialValue: _working.language,
+                  decoration: InputDecoration(labelText: tr(lang, '界面语言', 'Interface language')),
+                  items: AppLanguage.values
+                      .map((language) => DropdownMenuItem(
+                            value: language,
+                            child: Text(language.displayName),
+                          ))
+                      .toList(growable: false),
+                  onChanged: (value) {
+                    if (value == null) return;
+                    setState(() => _working = _working.copyWith(language: value));
+                  },
                 ),
                 ListTile(
-                  title: const Text('提醒阈值 (天)'),
+                  title: Text(tr(lang, '提醒阈值 (天)', 'Reminder threshold (days)')),
                   subtitle: Slider(
                     value: _working.reminderThresholdDays.toDouble(),
                     min: 1,
                     max: 14,
                     divisions: 13,
-                    label: '${_working.reminderThresholdDays} 天',
+                    label: lang == AppLanguage.zh
+                        ? '${_working.reminderThresholdDays} 天'
+                        : '${_working.reminderThresholdDays} day(s)',
                     onChanged: (value) => setState(
                       () => _working = _working.copyWith(reminderThresholdDays: value.round()),
                     ),
@@ -87,31 +105,33 @@ class _SettingsDialogState extends State<_SettingsDialog> {
                 SwitchListTile.adaptive(
                   value: _working.showRecurringPanel,
                   onChanged: (value) => setState(() => _working = _working.copyWith(showRecurringPanel: value)),
-                  title: const Text('显示周期任务列表'),
-                  subtitle: const Text('在面板中展示每周/每月循环任务'),
+                  title: Text(tr(lang, '显示周期任务列表', 'Show recurring task list')),
+                  subtitle: Text(tr(lang, '在面板中展示每周/每月循环任务', 'Display weekly/monthly tasks above the list')),
                   contentPadding: EdgeInsets.zero,
                 ),
                 ListTile(
-                  title: const Text('每周任务提醒阈值 (天)'),
+                  title: Text(tr(lang, '每周任务提醒阈值 (天)', 'Weekly reminder lead time (days)')),
                   subtitle: Slider(
                     value: _working.weeklyReminderDays.toDouble(),
                     min: 1,
                     max: 3,
                     divisions: 2,
-                    label: '${_working.weeklyReminderDays} 天',
+                    label:
+                        lang == AppLanguage.zh ? '${_working.weeklyReminderDays} 天' : '${_working.weeklyReminderDays} day(s)',
                     onChanged: _working.showRecurringPanel
                         ? (value) => setState(() => _working = _working.copyWith(weeklyReminderDays: value.round()))
                         : null,
                   ),
                 ),
                 ListTile(
-                  title: const Text('每月任务提醒阈值 (天)'),
+                  title: Text(tr(lang, '每月任务提醒阈值 (天)', 'Monthly reminder lead time (days)')),
                   subtitle: Slider(
                     value: _working.monthlyReminderDays.toDouble(),
                     min: 1,
                     max: 3,
                     divisions: 2,
-                    label: '${_working.monthlyReminderDays} 天',
+                    label:
+                        lang == AppLanguage.zh ? '${_working.monthlyReminderDays} 天' : '${_working.monthlyReminderDays} day(s)',
                     onChanged: _working.showRecurringPanel
                         ? (value) => setState(() => _working = _working.copyWith(monthlyReminderDays: value.round()))
                         : null,
@@ -119,26 +139,29 @@ class _SettingsDialogState extends State<_SettingsDialog> {
                 ),
                 TextField(
                   controller: _sloganController,
-                  decoration: const InputDecoration(labelText: '自定义标语'),
+                  decoration: InputDecoration(labelText: tr(lang, '自定义标语', 'Custom slogan')),
                   onChanged: (value) => _working = _working.copyWith(slogan: value.trim()),
                 ),
                 const SizedBox(height: 12),
                 _buildHexColorField(
-                  label: '文字颜色 (HEX)',
+                  label: tr(lang, '文字颜色 (HEX)', 'Text color (HEX)'),
                   controller: _textColorController,
                   onValidColor: (value) => setState(() => _working = _working.copyWith(textColorValue: value)),
+                  language: lang,
                 ),
                 const SizedBox(height: 8),
                 _buildHexColorField(
-                  label: '背景颜色 (HEX)',
+                  label: tr(lang, '背景颜色 (HEX)', 'Background color (HEX)'),
                   controller: _backgroundColorController,
                   onValidColor: (value) => setState(() => _working = _working.copyWith(backgroundColorValue: value)),
+                  language: lang,
                 ),
                 const SizedBox(height: 8),
                 _buildHexColorField(
-                  label: '列表区域颜色 (HEX)',
+                  label: tr(lang, '列表区域颜色 (HEX)', 'Panel color (HEX)'),
                   controller: _panelColorController,
                   onValidColor: (value) => setState(() => _working = _working.copyWith(panelColorValue: value)),
+                  language: lang,
                 ),
                 const SizedBox(height: 8),
               ],
@@ -147,10 +170,12 @@ class _SettingsDialogState extends State<_SettingsDialog> {
         ),
       ),
       actions: [
-        TextButton(onPressed: _saving ? null : () => Navigator.pop(context), child: const Text('取消')),
+        TextButton(onPressed: _saving ? null : () => Navigator.pop(context), child: Text(tr(lang, '取消', 'Cancel'))),
         FilledButton(
           onPressed: _saving ? null : _save,
-          child: _saving ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)) : const Text('保存'),
+          child: _saving
+              ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+              : Text(tr(lang, '保存', 'Save')),
         ),
       ],
     );
@@ -174,6 +199,7 @@ class _SettingsDialogState extends State<_SettingsDialog> {
     required String label,
     required TextEditingController controller,
     required ValueChanged<int> onValidColor,
+    required AppLanguage language,
   }) {
     final currentColor = Color(_parseHex(controller.text) ?? Colors.black.value);
     return Column(
@@ -188,7 +214,7 @@ class _SettingsDialogState extends State<_SettingsDialog> {
           ),
           maxLength: 6,
           inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9a-fA-F]'))],
-          validator: (value) => _validateHex(value),
+          validator: (value) => _validateHex(value, language),
           onChanged: (value) {
             final parsed = _parseHex(value);
             if (parsed != null) {
@@ -210,9 +236,9 @@ class _SettingsDialogState extends State<_SettingsDialog> {
             ),
             const SizedBox(width: 12),
             TextButton.icon(
-              onPressed: () => _openColorPicker(controller, onValidColor),
+              onPressed: () => _openColorPicker(controller, onValidColor, language),
               icon: const Icon(Icons.palette_outlined),
-              label: const Text('色盘选色'),
+              label: Text(tr(language, '色盘选色', 'Palette picker')),
             ),
           ],
         ),
@@ -220,9 +246,9 @@ class _SettingsDialogState extends State<_SettingsDialog> {
     );
   }
 
-  String? _validateHex(String? value) {
+  String? _validateHex(String? value, AppLanguage language) {
     if (_parseHex(value) == null) {
-      return '请输入 6 位 HEX 颜色，如 FFFFFF';
+      return tr(language, '请输入 6 位 HEX 颜色，如 FFFFFF', 'Enter a 6-digit HEX color, e.g. FFFFFF');
     }
     return null;
   }
@@ -239,20 +265,24 @@ class _SettingsDialogState extends State<_SettingsDialog> {
     return 0xFF000000 | parsed;
   }
 
-  Future<void> _openColorPicker(TextEditingController controller, ValueChanged<int> onValidColor) async {
+  Future<void> _openColorPicker(
+    TextEditingController controller,
+    ValueChanged<int> onValidColor,
+    AppLanguage language,
+  ) async {
     Color temp = Color(_parseHex(controller.text) ?? Colors.black.value);
     final picked = await showDialog<Color>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('选择颜色'),
+        title: Text(tr(language, '选择颜色', 'Pick a color')),
         content: ColorPicker(
           pickerColor: temp,
           enableAlpha: false,
           onColorChanged: (color) => temp = color,
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('取消')),
-          FilledButton(onPressed: () => Navigator.pop(context, temp), child: const Text('确定')),
+          TextButton(onPressed: () => Navigator.pop(context), child: Text(tr(language, '取消', 'Cancel'))),
+          FilledButton(onPressed: () => Navigator.pop(context, temp), child: Text(tr(language, '确定', 'OK'))),
         ],
       ),
     );

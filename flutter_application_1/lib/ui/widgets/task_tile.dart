@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../../core/i18n.dart';
+import '../../models/app_settings.dart';
 import '../../models/task.dart';
 
 class TaskTile extends StatelessWidget {
@@ -11,6 +13,7 @@ class TaskTile extends StatelessWidget {
     required this.onToggle,
     required this.onTap,
     required this.onDelete,
+    required this.language,
   });
 
   final Task task;
@@ -18,16 +21,17 @@ class TaskTile extends StatelessWidget {
   final VoidCallback onToggle;
   final VoidCallback onTap;
   final VoidCallback onDelete;
+  final AppLanguage language;
 
   @override
   Widget build(BuildContext context) {
     final now = DateTime.now();
     final overdue = daysLeft < 0;
     final subtitle = task.completed
-        ? '已完成'
+        ? tr(language, '已完成', 'Completed')
         : overdue
-            ? '已逾期 ${daysLeft.abs()} 天'
-            : '剩余 $daysLeft 天';
+            ? tr(language, '已逾期 ${daysLeft.abs()} 天', 'Overdue ${daysLeft.abs()} day(s)')
+            : tr(language, '剩余 $daysLeft 天', '$daysLeft day(s) left');
     final formatter = DateFormat('yyyy-MM-dd');
     final deadlineDate = task.isRecurring ? task.nextDueDate(now) : task.deadline;
     final deadlineText = formatter.format(deadlineDate);
@@ -46,9 +50,7 @@ class TaskTile extends StatelessWidget {
     return ListTile(
       onTap: onTap,
       dense: true,
-      leading: task.isRecurring
-          ? const Icon(Icons.repeat)
-          : Checkbox(value: task.completed, onChanged: (_) => onToggle()),
+      leading: Checkbox(value: task.completed, onChanged: (_) => onToggle()),
       title: Text(task.title, style: textStyle),
       subtitle: Text(
         '${recurrenceLabel != null ? '$recurrenceLabel · ' : ''}$deadlineText · $subtitle',
@@ -64,11 +66,14 @@ class TaskTile extends StatelessWidget {
           else
             Padding(
               padding: const EdgeInsets.only(right: 8),
-              child: Text('$daysLeft 天', style: Theme.of(context).textTheme.titleMedium),
+              child: Text(
+                language == AppLanguage.zh ? '$daysLeft 天' : '$daysLeft day(s)',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
             ),
           IconButton(
             icon: const Icon(Icons.delete_outline),
-            tooltip: '删除',
+            tooltip: tr(language, '删除', 'Delete'),
             onPressed: onDelete,
           ),
         ],
@@ -82,12 +87,12 @@ class TaskTile extends StatelessWidget {
     }
     switch (task.recurrenceType) {
       case RecurrenceType.weekly:
-        const labels = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
+        final labels = weekdayLabels(language);
         final index = ((task.recurrenceValue ?? 1) - 1).clamp(0, 6);
-        return '每周 ${labels[index]}';
+        return language == AppLanguage.zh ? '每周 ${labels[index]}' : 'Every ${labels[index]}';
       case RecurrenceType.monthly:
         final day = (task.recurrenceValue ?? 1).clamp(1, 31);
-        return '每月 $day 日';
+        return language == AppLanguage.zh ? '每月 $day 日' : 'Day $day each month';
       case RecurrenceType.none:
         return null;
     }

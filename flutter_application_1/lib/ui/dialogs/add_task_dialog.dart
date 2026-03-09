@@ -1,16 +1,21 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
+import '../../core/i18n.dart';
+import '../../models/app_settings.dart';
 import '../../models/task.dart';
 
-Future<Task?> showAddTaskDialog(BuildContext context) {
+Future<Task?> showAddTaskDialog(BuildContext context, AppLanguage language) {
   return showDialog<Task>(
     context: context,
-    builder: (_) => const _AddTaskDialog(),
+    builder: (_) => _AddTaskDialog(language: language),
   );
 }
 
 class _AddTaskDialog extends StatefulWidget {
-  const _AddTaskDialog();
+  const _AddTaskDialog({required this.language});
+
+  final AppLanguage language;
 
   @override
   State<_AddTaskDialog> createState() => _AddTaskDialogState();
@@ -19,8 +24,8 @@ class _AddTaskDialog extends StatefulWidget {
 class _AddTaskDialogState extends State<_AddTaskDialog> {
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
-  DateTime? _deadline;
   final _formKey = GlobalKey<FormState>();
+  DateTime? _deadline;
   bool _recurringEnabled = false;
   RecurrenceType _recurrenceType = RecurrenceType.weekly;
   int _weeklyDay = DateTime.now().weekday;
@@ -36,8 +41,9 @@ class _AddTaskDialogState extends State<_AddTaskDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final lang = widget.language;
     return AlertDialog(
-      title: const Text('新建任务'),
+      title: Text(tr(lang, '新建任务', 'New Task')),
       content: SingleChildScrollView(
         child: Form(
           key: _formKey,
@@ -46,13 +52,14 @@ class _AddTaskDialogState extends State<_AddTaskDialog> {
             children: [
               TextFormField(
                 controller: _titleController,
-                decoration: const InputDecoration(labelText: '任务简称'),
+                decoration: InputDecoration(labelText: tr(lang, '任务简称', 'Task title')),
                 onChanged: (_) => setState(() {}),
-                validator: (value) => (value == null || value.trim().isEmpty) ? '请输入任务名称' : null,
+                validator: (value) =>
+                    (value == null || value.trim().isEmpty) ? tr(lang, '请输入任务名称', 'Please enter a task name') : null,
               ),
               TextFormField(
                 controller: _descriptionController,
-                decoration: const InputDecoration(labelText: '任务描述'),
+                decoration: InputDecoration(labelText: tr(lang, '任务描述', 'Description')),
                 minLines: 2,
                 maxLines: 3,
               ),
@@ -61,51 +68,58 @@ class _AddTaskDialogState extends State<_AddTaskDialog> {
                 contentPadding: EdgeInsets.zero,
                 value: _recurringEnabled,
                 onChanged: (value) => setState(() => _recurringEnabled = value),
-                title: const Text('周期任务'),
-                subtitle: const Text('用于每周或每月重复的固定提醒'),
+                title: Text(tr(lang, '周期任务', 'Recurring task')),
+                subtitle: Text(tr(lang, '用于每周或每月重复的固定提醒', 'Use for weekly or monthly reminders')),
               ),
               const SizedBox(height: 8),
               AnimatedSwitcher(
                 duration: const Duration(milliseconds: 200),
-                child: _recurringEnabled ? _buildRecurringFields() : _buildDeadlinePicker(),
+                child: _recurringEnabled
+                    ? _buildRecurringFields(lang)
+                    : _buildDeadlinePicker(lang),
               ),
             ],
           ),
         ),
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('取消')),
-        FilledButton(onPressed: _canSubmit ? _submit : null, child: const Text('保存')),
+        TextButton(onPressed: () => Navigator.pop(context), child: Text(tr(lang, '取消', 'Cancel'))),
+        FilledButton(onPressed: _canSubmit ? _submit : null, child: Text(tr(lang, '保存', 'Save'))),
       ],
     );
   }
 
-  Widget _buildDeadlinePicker() {
+  Widget _buildDeadlinePicker(AppLanguage language) {
+    final formatter = DateFormat('yyyy-MM-dd', language.localeCode);
     return Row(
       key: const ValueKey('deadlinePicker'),
       children: [
         Expanded(
-          child: Text(_deadline == null ? '请选择截止日期' : _deadline!.toString().split(' ').first),
+          child: Text(
+            _deadline == null
+                ? tr(language, '请选择截止日期', 'Please pick a due date')
+                : formatter.format(_deadline!),
+          ),
         ),
         TextButton(
           onPressed: _pickDate,
-          child: const Text('选择日期'),
+          child: Text(tr(language, '选择日期', 'Pick date')),
         ),
       ],
     );
   }
 
-  Widget _buildRecurringFields() {
+  Widget _buildRecurringFields(AppLanguage language) {
     return Column(
       key: const ValueKey('recurringFields'),
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         DropdownButtonFormField<RecurrenceType>(
-          value: _recurrenceType,
-          decoration: const InputDecoration(labelText: '循环类型'),
-          items: const [
-            DropdownMenuItem(value: RecurrenceType.weekly, child: Text('每周')),
-            DropdownMenuItem(value: RecurrenceType.monthly, child: Text('每月')),
+          initialValue: _recurrenceType,
+          decoration: InputDecoration(labelText: tr(language, '循环类型', 'Recurrence type')),
+          items: [
+            DropdownMenuItem(value: RecurrenceType.weekly, child: Text(tr(language, '每周', 'Weekly'))),
+            DropdownMenuItem(value: RecurrenceType.monthly, child: Text(tr(language, '每月', 'Monthly'))),
           ],
           onChanged: (value) {
             if (value == null) return;
@@ -113,19 +127,22 @@ class _AddTaskDialogState extends State<_AddTaskDialog> {
           },
         ),
         const SizedBox(height: 8),
-        if (_recurrenceType == RecurrenceType.weekly) _buildWeeklySelector() else _buildMonthlySelector(),
+        if (_recurrenceType == RecurrenceType.weekly)
+          _buildWeeklySelector(language)
+        else
+          _buildMonthlySelector(language),
         const SizedBox(height: 8),
-        _buildReminderSelector(),
+        _buildReminderSelector(language),
       ],
     );
   }
 
-  Widget _buildWeeklySelector() {
-    const labels = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
+  Widget _buildWeeklySelector(AppLanguage language) {
+    final labels = weekdayLabels(language);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('提醒星期'),
+        Text(tr(language, '提醒星期', 'Day of week')),
         const SizedBox(height: 6),
         Wrap(
           spacing: 8,
@@ -143,12 +160,19 @@ class _AddTaskDialogState extends State<_AddTaskDialog> {
     );
   }
 
-  Widget _buildMonthlySelector() {
+  Widget _buildMonthlySelector(AppLanguage language) {
     final items = List.generate(31, (index) => index + 1);
     return DropdownButtonFormField<int>(
-      value: _monthlyDay,
-      decoration: const InputDecoration(labelText: '每月日期'),
-      items: items.map((day) => DropdownMenuItem(value: day, child: Text('每月 $day 日'))).toList(growable: false),
+      initialValue: _monthlyDay,
+      decoration: InputDecoration(labelText: tr(language, '每月日期', 'Day of month')),
+      items: items
+          .map(
+            (day) => DropdownMenuItem(
+              value: day,
+              child: Text(language == AppLanguage.zh ? '每月 $day 日' : 'Day $day'),
+            ),
+          )
+          .toList(growable: false),
       onChanged: (value) {
         if (value == null) return;
         setState(() => _monthlyDay = value);
@@ -156,16 +180,16 @@ class _AddTaskDialogState extends State<_AddTaskDialog> {
     );
   }
 
-  Widget _buildReminderSelector() {
+  Widget _buildReminderSelector(AppLanguage language) {
     return ListTile(
       contentPadding: EdgeInsets.zero,
-      title: const Text('提醒阈值 (天)'),
+      title: Text(tr(language, '提醒阈值 (天)', 'Reminder threshold (days)')),
       subtitle: Slider(
         value: _recurrenceReminderDays.toDouble(),
         min: 1,
         max: 3,
         divisions: 2,
-        label: '${_recurrenceReminderDays} 天',
+        label: language == AppLanguage.zh ? '$_recurrenceReminderDays 天' : '$_recurrenceReminderDays day(s)',
         onChanged: (value) => setState(() => _recurrenceReminderDays = value.round()),
       ),
     );
@@ -189,6 +213,7 @@ class _AddTaskDialogState extends State<_AddTaskDialog> {
       initialDate: initial,
       firstDate: now.subtract(const Duration(days: 365)),
       lastDate: now.add(const Duration(days: 365 * 5)),
+      locale: Locale(widget.language == AppLanguage.zh ? 'zh' : 'en'),
     );
     if (picked != null) {
       setState(() {

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../../core/i18n.dart';
 import '../../models/app_settings.dart';
 import '../../models/task.dart';
 import '../widgets/recurring_task_list.dart';
@@ -32,16 +33,16 @@ class TaskBoard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final today = DateFormat.yMMMMd('zh_CN').format(DateTime.now());
+    final today = DateFormat.yMMMMd(settings.language.localeCode).format(DateTime.now());
     final secondaryTextColor = settings.textColor.withOpacity(.65);
     final theme = Theme.of(context);
     final showRecurringPanel = settings.showRecurringPanel;
     final recurringTasks = showRecurringPanel
-      ? tasks.where((task) => task.isRecurring).toList(growable: false)
-      : const <Task>[];
+        ? tasks.where((task) => task.isRecurring).toList(growable: false)
+        : const <Task>[];
     final regularTasks = showRecurringPanel
-      ? tasks.where((task) => !task.isRecurring).toList(growable: false)
-      : tasks;
+        ? tasks.where((task) => !task.isRecurring).toList(growable: false)
+        : tasks;
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -53,6 +54,7 @@ class TaskBoard extends StatelessWidget {
             onDragWindow: onDragWindow,
             onOpenSettings: onOpenSettings,
             secondaryColor: secondaryTextColor,
+            language: settings.language,
           ),
           const SizedBox(height: 12),
           if (showRecurringPanel && recurringTasks.isNotEmpty) ...[
@@ -61,6 +63,8 @@ class TaskBoard extends StatelessWidget {
               onDelete: onDeleteTask,
               onTap: onOpenDetails,
               accentColor: settings.textColor,
+              onToggle: onToggle,
+              language: settings.language,
             ),
             const SizedBox(height: 12),
           ],
@@ -76,8 +80,8 @@ class TaskBoard extends StatelessWidget {
                   ? Center(
                       child: Text(
                         recurringTasks.isEmpty
-                            ? '目前还没有任务，点击下方的 + 创建新任务'
-                            : '当下没有一次性任务，周期任务在上方列表',
+                            ? tr(settings.language, '目前还没有任务，点击下方的 + 创建新任务', 'No tasks yet, tap + to create one')
+                            : tr(settings.language, '当下没有一次性任务，周期任务在上方列表', 'Only recurring tasks now, see the list above'),
                         style: theme.textTheme.bodyMedium?.copyWith(color: secondaryTextColor),
                       ),
                     )
@@ -92,6 +96,7 @@ class TaskBoard extends StatelessWidget {
                           onToggle: () => onToggle(task),
                           onTap: () => onOpenDetails(task),
                           onDelete: () => onDeleteTask(task),
+                          language: settings.language,
                         );
                       },
                       separatorBuilder: (_, __) => Divider(height: 1, color: secondaryTextColor.withOpacity(.2)),
@@ -105,7 +110,7 @@ class TaskBoard extends StatelessWidget {
                 child: OutlinedButton.icon(
                   onPressed: onImportTasks,
                   icon: const Icon(Icons.file_upload_outlined),
-                  label: const Text('导入任务'),
+                  label: Text(tr(settings.language, '导入任务', 'Import tasks')),
                 ),
               ),
               const SizedBox(width: 12),
@@ -113,7 +118,7 @@ class TaskBoard extends StatelessWidget {
                 child: FilledButton.icon(
                   onPressed: onAddTask,
                   icon: const Icon(Icons.add),
-                  label: const Text('新建任务'),
+                  label: Text(tr(settings.language, '新建任务', 'Add task')),
                 ),
               ),
             ],
@@ -131,6 +136,7 @@ class _Header extends StatelessWidget {
     required this.onOpenSettings,
     required this.onDragWindow,
     required this.secondaryColor,
+    required this.language,
   });
 
   final String slogan;
@@ -138,6 +144,7 @@ class _Header extends StatelessWidget {
   final VoidCallback onOpenSettings;
   final VoidCallback onDragWindow;
   final Color secondaryColor;
+  final AppLanguage language;
 
   @override
   Widget build(BuildContext context) {
@@ -156,7 +163,7 @@ class _Header extends StatelessWidget {
             ),
           ),
           IconButton(
-            tooltip: '设置',
+            tooltip: tr(language, '设置', 'Settings'),
             onPressed: onOpenSettings,
             icon: const Icon(Icons.settings_outlined),
           ),

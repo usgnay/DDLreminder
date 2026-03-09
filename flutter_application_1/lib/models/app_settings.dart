@@ -1,5 +1,20 @@
 import 'package:flutter/material.dart';
 
+enum AppLanguage { zh, en }
+
+extension AppLanguageX on AppLanguage {
+  String get localeCode => this == AppLanguage.zh ? 'zh_CN' : 'en_US';
+  String get displayName => this == AppLanguage.zh ? '中文' : 'English';
+  String get storageKey => this == AppLanguage.zh ? 'zh' : 'en';
+
+  static AppLanguage parse(String? raw) {
+    if (raw == 'en') {
+      return AppLanguage.en;
+    }
+    return AppLanguage.zh;
+  }
+}
+
 class AppSettings {
   final int reminderThresholdDays;
   final bool autoLaunch;
@@ -10,6 +25,7 @@ class AppSettings {
   final bool showRecurringPanel;
   final int weeklyReminderDays;
   final int monthlyReminderDays;
+  final AppLanguage language;
 
   const AppSettings({
     required this.reminderThresholdDays,
@@ -21,6 +37,7 @@ class AppSettings {
     required this.showRecurringPanel,
     required this.weeklyReminderDays,
     required this.monthlyReminderDays,
+    required this.language,
   });
 
   factory AppSettings.defaults() {
@@ -34,6 +51,7 @@ class AppSettings {
       showRecurringPanel: true,
       weeklyReminderDays: 2,
       monthlyReminderDays: 3,
+      language: AppLanguage.zh,
     );
   }
 
@@ -47,6 +65,7 @@ class AppSettings {
     bool? showRecurringPanel,
     int? weeklyReminderDays,
     int? monthlyReminderDays,
+    AppLanguage? language,
   }) {
     return AppSettings(
       reminderThresholdDays: reminderThresholdDays ?? this.reminderThresholdDays,
@@ -58,6 +77,7 @@ class AppSettings {
       showRecurringPanel: showRecurringPanel ?? this.showRecurringPanel,
       weeklyReminderDays: weeklyReminderDays ?? this.weeklyReminderDays,
       monthlyReminderDays: monthlyReminderDays ?? this.monthlyReminderDays,
+      language: language ?? this.language,
     );
   }
 
@@ -72,6 +92,7 @@ class AppSettings {
       showRecurringPanel: json['showRecurringPanel'] as bool? ?? true,
       weeklyReminderDays: json['weeklyReminderDays'] as int? ?? 2,
       monthlyReminderDays: json['monthlyReminderDays'] as int? ?? 3,
+      language: AppLanguageX.parse(json['language'] as String?),
     );
   }
 
@@ -86,6 +107,7 @@ class AppSettings {
       'showRecurringPanel': showRecurringPanel,
       'weeklyReminderDays': weeklyReminderDays,
       'monthlyReminderDays': monthlyReminderDays,
+      'language': language.storageKey,
     };
   }
 

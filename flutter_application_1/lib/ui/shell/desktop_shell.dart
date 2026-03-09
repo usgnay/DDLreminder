@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:window_manager/window_manager.dart';
 
+import '../../core/i18n.dart';
+import '../../models/app_settings.dart';
 import '../../models/task.dart';
 import '../../services/bootstrap.dart';
 import '../../services/settings_service.dart';
@@ -77,6 +79,7 @@ class _DesktopShellState extends State<DesktopShell> {
     if (_reminderShown) {
       return;
     }
+    final lang = settings.value.language;
     final dueSoon = filterDueSoon(
       tasks.tasks,
       settings.value,
@@ -89,7 +92,7 @@ class _DesktopShellState extends State<DesktopShell> {
     showDialog<void>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('即将到期的任务'),
+        title: Text(tr(lang, '即将到期的任务', 'Upcoming deadlines')),
         content: ConstrainedBox(
           constraints: const BoxConstraints(maxHeight: 280),
           child: ListView.builder(
@@ -100,8 +103,10 @@ class _DesktopShellState extends State<DesktopShell> {
               final now = DateTime.now();
               final days = task.daysLeft(now);
               final dueDate = task.nextDueDate(now);
-              final dateText = DateFormat('yyyy-MM-dd').format(dueDate);
-              final desc = days >= 0 ? '剩余 $days 天' : '已逾期 ${days.abs()} 天';
+              final dateText = DateFormat('yyyy-MM-dd', lang.localeCode).format(dueDate);
+              final desc = days >= 0
+                  ? tr(lang, '剩余 $days 天', '$days day(s) left')
+                  : tr(lang, '已逾期 ${days.abs()} 天', 'Overdue ${days.abs()} day(s)');
               return ListTile(
                 dense: true,
                 title: Text(task.title),
@@ -111,14 +116,14 @@ class _DesktopShellState extends State<DesktopShell> {
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('好的')),
+          TextButton(onPressed: () => Navigator.pop(context), child: Text(tr(lang, '好的', 'Got it'))),
         ],
       ),
     );
   }
 
   Future<void> _handleAddTask() async {
-    final task = await showAddTaskDialog(context);
+    final task = await showAddTaskDialog(context, settings.value.language);
     if (task != null) {
       await tasks.add(task);
       _maybeShowReminder();
@@ -126,7 +131,7 @@ class _DesktopShellState extends State<DesktopShell> {
   }
 
   Future<void> _handleImport() async {
-    await showImportDialog(context, tasks);
+    await showImportDialog(context, tasks, settings.value.language);
     _maybeShowReminder();
   }
 
@@ -135,14 +140,15 @@ class _DesktopShellState extends State<DesktopShell> {
   }
 
   Future<void> _handleDeleteTask(Task task) async {
+    final lang = settings.value.language;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('删除任务'),
-        content: Text('确定要删除“${task.title}”吗？该操作不可撤销。'),
+        title: Text(tr(lang, '删除任务', 'Delete task')),
+        content: Text(tr(lang, '确定要删除“${task.title}”吗？该操作不可撤销。', 'Delete “${task.title}”? This cannot be undone.')),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('取消')),
-          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('删除')),
+          TextButton(onPressed: () => Navigator.pop(context, false), child: Text(tr(lang, '取消', 'Cancel'))),
+          FilledButton(onPressed: () => Navigator.pop(context, true), child: Text(tr(lang, '删除', 'Delete'))),
         ],
       ),
     );
@@ -164,7 +170,7 @@ class _DesktopShellState extends State<DesktopShell> {
               settings: settings.value,
               tasks: snapshot,
               onToggle: (task) => tasks.toggle(task.id),
-              onOpenDetails: (task) => showTaskDetailDialog(context, task),
+              onOpenDetails: (task) => showTaskDetailDialog(context, task, settings.value.language),
               onAddTask: _handleAddTask,
               onOpenSettings: _openSettings,
               onImportTasks: _handleImport,

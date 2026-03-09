@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../../core/i18n.dart';
+import '../../models/app_settings.dart';
 import '../../models/task.dart';
 
-void showTaskDetailDialog(BuildContext context, Task task) {
-  final formatter = DateFormat('yyyy-MM-dd');
+void showTaskDetailDialog(BuildContext context, Task task, AppLanguage language) {
+  final formatter = DateFormat('yyyy-MM-dd', language.localeCode);
   final now = DateTime.now();
   final days = task.daysLeft(now);
   final dueDate = task.nextDueDate(now);
@@ -17,35 +19,51 @@ void showTaskDetailDialog(BuildContext context, Task task) {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(task.isRecurring ? '下次提醒: ${formatter.format(dueDate)}' : '截止日期: ${formatter.format(task.deadline)}'),
+          Text(
+            task.isRecurring
+                ? tr(language, '下次提醒: ${formatter.format(dueDate)}', 'Next reminder: ${formatter.format(dueDate)}')
+                : tr(language, '截止日期: ${formatter.format(task.deadline)}', 'Due date: ${formatter.format(task.deadline)}'),
+          ),
           if (task.isRecurring) ...[
             const SizedBox(height: 4),
-            Text(_recurrenceLabel(task)),
+            Text(_recurrenceLabel(task, language)),
           ],
           const SizedBox(height: 4),
-          Text(overdue ? '状态: 已逾期' : (task.completed ? '状态: 已完成' : '状态: 进行中')),
+          Text(
+            overdue
+                ? tr(language, '状态: 已逾期', 'Status: overdue')
+                : (task.completed
+                    ? tr(language, '状态: 已完成', 'Status: done')
+                    : tr(language, '状态: 进行中', 'Status: in progress')),
+          ),
           const SizedBox(height: 8),
-          Text('剩余天数: ${days >= 0 ? days : '已超期 ${days.abs()} 天'}'),
+          Text(
+            days >= 0
+                ? tr(language, '剩余天数: $days', 'Days remaining: $days')
+                : tr(language, '剩余天数: 已超期 ${days.abs()} 天', 'Days remaining: overdue by ${days.abs()} day(s)'),
+          ),
           const SizedBox(height: 12),
-          Text(task.description.isEmpty ? '暂无详细描述' : task.description),
+          Text(task.description.isEmpty
+              ? tr(language, '暂无详细描述', 'No additional description')
+              : task.description),
         ],
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('关闭')),
+        TextButton(onPressed: () => Navigator.pop(context), child: Text(tr(language, '关闭', 'Close'))),
       ],
     ),
   );
 }
 
-String _recurrenceLabel(Task task) {
+String _recurrenceLabel(Task task, AppLanguage language) {
   switch (task.recurrenceType) {
     case RecurrenceType.weekly:
-      const names = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
+      final names = weekdayLabels(language);
       final index = ((task.recurrenceValue ?? 1) - 1).clamp(0, 6);
-      return '周期: 每周 ${names[index]}';
+      return language == AppLanguage.zh ? '周期: 每周 ${names[index]}' : 'Repeats: every ${names[index]}';
     case RecurrenceType.monthly:
       final day = (task.recurrenceValue ?? 1).clamp(1, 31);
-      return '周期: 每月 $day 日';
+      return language == AppLanguage.zh ? '周期: 每月 $day 日' : 'Repeats: day $day each month';
     case RecurrenceType.none:
       return '';
   }

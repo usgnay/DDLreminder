@@ -4,23 +4,26 @@ import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
+import '../../core/i18n.dart';
+import '../../models/app_settings.dart';
 import '../../models/task.dart';
 import '../../services/task_service.dart';
 
-Future<void> showImportDialog(BuildContext context, TaskService tasks) async {
+Future<void> showImportDialog(BuildContext context, TaskService tasks, AppLanguage language) async {
   final controller = TextEditingController(text: _sampleJson);
   await showDialog<void>(
     context: context,
-    builder: (_) => _ImportDialog(tasks: tasks, controller: controller),
+    builder: (_) => _ImportDialog(tasks: tasks, controller: controller, language: language),
   );
   controller.dispose();
 }
 
 class _ImportDialog extends StatefulWidget {
-  const _ImportDialog({required this.tasks, required this.controller});
+  const _ImportDialog({required this.tasks, required this.controller, required this.language});
 
   final TaskService tasks;
   final TextEditingController controller;
+  final AppLanguage language;
 
   @override
   State<_ImportDialog> createState() => _ImportDialogState();
@@ -33,15 +36,15 @@ class _ImportDialogState extends State<_ImportDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('导入任务'),
+      title: Text(tr(widget.language, '导入任务', 'Import tasks')),
       content: SizedBox(
         width: 460,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Align(
+            Align(
               alignment: Alignment.centerLeft,
-              child: Text('JSON 格式示例 (只读)：'),
+              child: Text(tr(widget.language, 'JSON 格式示例 (只读)：', 'JSON example (read-only):')),
             ),
             const SizedBox(height: 6),
             TextField(
@@ -54,7 +57,7 @@ class _ImportDialogState extends State<_ImportDialog> {
             OutlinedButton.icon(
               onPressed: _busy ? null : _pickFile,
               icon: const Icon(Icons.folder_open),
-              label: const Text('选择 JSON 文件'),
+              label: Text(tr(widget.language, '选择 JSON 文件', 'Choose JSON file')),
             ),
             if (_status != null) ...[
               const SizedBox(height: 8),
@@ -64,7 +67,10 @@ class _ImportDialogState extends State<_ImportDialog> {
         ),
       ),
       actions: [
-        TextButton(onPressed: _busy ? null : () => Navigator.pop(context), child: const Text('关闭')),
+        TextButton(
+          onPressed: _busy ? null : () => Navigator.pop(context),
+          child: Text(tr(widget.language, '关闭', 'Close')),
+        ),
       ],
     );
   }
@@ -72,13 +78,13 @@ class _ImportDialogState extends State<_ImportDialog> {
   Future<void> _pickFile() async {
     setState(() {
       _busy = true;
-      _status = '正在解析...';
+      _status = tr(widget.language, '正在解析...', 'Parsing...');
     });
     try {
       final result = await FilePicker.platform.pickFiles(type: FileType.custom, allowedExtensions: ['json']);
       if (result == null || result.files.single.path == null) {
         setState(() {
-          _status = '已取消';
+          _status = tr(widget.language, '已取消', 'Cancelled');
           _busy = false;
         });
         return;
@@ -88,7 +94,7 @@ class _ImportDialogState extends State<_ImportDialog> {
       final parsed = jsonDecode(payload);
       if (parsed is! List) {
         setState(() {
-          _status = '格式错误：根节点必须是数组';
+          _status = tr(widget.language, '格式错误：根节点必须是数组', 'Format error: root node must be an array');
           _busy = false;
         });
         return;
@@ -98,7 +104,7 @@ class _ImportDialogState extends State<_ImportDialog> {
       for (var i = 0; i < parsed.length; i++) {
         final row = parsed[i];
         if (row is! Map) {
-          issues.add('第 ${i + 1} 行不是对象');
+          issues.add(widget.language == AppLanguage.zh ? '第 ${i + 1} 行不是对象' : 'Row ${i + 1} is not an object');
           continue;
         }
         final node = Map<String, dynamic>.from(row);
@@ -110,24 +116,24 @@ class _ImportDialogState extends State<_ImportDialog> {
         final recurrenceValue = node['recurrenceValue'] as int?;
         final recurrenceReminderDays = node['recurrenceReminderDays'] as int?;
         if (title == null || title.isEmpty) {
-          issues.add('第 ${i + 1} 行缺少 title');
+          issues.add(widget.language == AppLanguage.zh ? '第 ${i + 1} 行缺少 title' : 'Row ${i + 1} missing title');
           continue;
         }
         DateTime? deadline;
         if (recurrenceType == RecurrenceType.none) {
           deadline = DateTime.tryParse(deadlineRaw ?? '');
           if (deadline == null) {
-            issues.add('第 ${i + 1} 行 deadline 无法解析');
+            issues.add(widget.language == AppLanguage.zh ? '第 ${i + 1} 行 deadline 无法解析' : 'Row ${i + 1} has invalid deadline');
             continue;
           }
         } else {
           if (recurrenceValue == null) {
-            issues.add('第 ${i + 1} 行缺少 recurrenceValue');
+            issues.add(widget.language == AppLanguage.zh ? '第 ${i + 1} 行缺少 recurrenceValue' : 'Row ${i + 1} missing recurrenceValue');
             continue;
           }
           deadline = Task.projectNextOccurrence(recurrenceType, recurrenceValue, DateTime.now());
         }
-        final normalizedDeadline = DateTime(deadline!.year, deadline.month, deadline.day);
+        final normalizedDeadline = DateTime(deadline.year, deadline.month, deadline.day);
         buffer.add(
           Task(
             id: node['id'] as String? ?? Task.freshId(title),
@@ -143,19 +149,23 @@ class _ImportDialogState extends State<_ImportDialog> {
       }
       if (buffer.isEmpty) {
         setState(() {
-          _status = '未导入任何任务：${issues.join('，')}';
+          _status = widget.language == AppLanguage.zh
+              ? '未导入任何任务：${issues.join('，')}'
+              : 'No tasks imported: ${issues.join('; ')}';
           _busy = false;
         });
         return;
       }
       await widget.tasks.importMany(buffer);
       setState(() {
-        _status = '成功导入 ${buffer.length} 条任务${issues.isEmpty ? '' : '，有警告：${issues.join('；')}'}';
+        _status = widget.language == AppLanguage.zh
+            ? '成功导入 ${buffer.length} 条任务${issues.isEmpty ? '' : '，有警告：${issues.join('；')}'}'
+            : 'Imported ${buffer.length} task(s)${issues.isEmpty ? '' : ' with warnings: ${issues.join('; ')}'}';
         _busy = false;
       });
     } catch (error) {
       setState(() {
-        _status = '导入失败：$error';
+        _status = widget.language == AppLanguage.zh ? '导入失败：$error' : 'Import failed: $error';
         _busy = false;
       });
     }
