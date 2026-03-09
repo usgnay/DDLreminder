@@ -15,6 +15,65 @@ extension AppLanguageX on AppLanguage {
   }
 }
 
+enum AppFontFamily { system, notoSans, inter, custom }
+
+extension AppFontFamilyX on AppFontFamily {
+  String get storageKey {
+    switch (this) {
+      case AppFontFamily.notoSans:
+        return 'notoSans';
+      case AppFontFamily.inter:
+        return 'inter';
+      case AppFontFamily.system:
+      default:
+        return 'system';
+    }
+  }
+
+  String displayName(AppLanguage language) {
+    final zh = language == AppLanguage.zh;
+    switch (this) {
+      case AppFontFamily.notoSans:
+        return zh ? '思源黑体（Noto Sans）' : 'Noto Sans';
+      case AppFontFamily.inter:
+        return zh ? 'Inter（英文字体）' : 'Inter';
+      case AppFontFamily.custom:
+        return zh ? '自定义（系统字体）' : 'Custom (system font)';
+      case AppFontFamily.system:
+      default:
+        return zh ? '系统默认' : 'System default';
+    }
+  }
+
+  String? get fontFamilyName {
+    switch (this) {
+      case AppFontFamily.notoSans:
+        return 'Noto Sans';
+      case AppFontFamily.inter:
+        return 'Inter';
+      case AppFontFamily.custom:
+        return null;
+      case AppFontFamily.system:
+      default:
+        return null;
+    }
+  }
+
+  static AppFontFamily parse(String? raw) {
+    switch (raw) {
+      case 'notoSans':
+        return AppFontFamily.notoSans;
+      case 'inter':
+        return AppFontFamily.inter;
+      case 'custom':
+        return AppFontFamily.custom;
+      case 'system':
+      default:
+        return AppFontFamily.system;
+    }
+  }
+}
+
 class AppSettings {
   final int reminderThresholdDays;
   final bool autoLaunch;
@@ -26,6 +85,8 @@ class AppSettings {
   final int weeklyReminderDays;
   final int monthlyReminderDays;
   final AppLanguage language;
+  final AppFontFamily fontFamily;
+  final String? customFontFamily;
 
   const AppSettings({
     required this.reminderThresholdDays,
@@ -38,6 +99,8 @@ class AppSettings {
     required this.weeklyReminderDays,
     required this.monthlyReminderDays,
     required this.language,
+    required this.fontFamily,
+    required this.customFontFamily,
   });
 
   factory AppSettings.defaults() {
@@ -52,6 +115,8 @@ class AppSettings {
       weeklyReminderDays: 2,
       monthlyReminderDays: 3,
       language: AppLanguage.zh,
+      fontFamily: AppFontFamily.notoSans,
+      customFontFamily: null,
     );
   }
 
@@ -66,6 +131,8 @@ class AppSettings {
     int? weeklyReminderDays,
     int? monthlyReminderDays,
     AppLanguage? language,
+    AppFontFamily? fontFamily,
+    String? customFontFamily,
   }) {
     return AppSettings(
       reminderThresholdDays: reminderThresholdDays ?? this.reminderThresholdDays,
@@ -78,6 +145,8 @@ class AppSettings {
       weeklyReminderDays: weeklyReminderDays ?? this.weeklyReminderDays,
       monthlyReminderDays: monthlyReminderDays ?? this.monthlyReminderDays,
       language: language ?? this.language,
+      fontFamily: fontFamily ?? this.fontFamily,
+      customFontFamily: customFontFamily ?? this.customFontFamily,
     );
   }
 
@@ -93,6 +162,8 @@ class AppSettings {
       weeklyReminderDays: json['weeklyReminderDays'] as int? ?? 2,
       monthlyReminderDays: json['monthlyReminderDays'] as int? ?? 3,
       language: AppLanguageX.parse(json['language'] as String?),
+      fontFamily: AppFontFamilyX.parse(json['fontFamily'] as String?),
+      customFontFamily: json['customFontFamily'] as String?,
     );
   }
 
@@ -108,10 +179,23 @@ class AppSettings {
       'weeklyReminderDays': weeklyReminderDays,
       'monthlyReminderDays': monthlyReminderDays,
       'language': language.storageKey,
+      'fontFamily': fontFamily.storageKey,
+      'customFontFamily': customFontFamily,
     };
   }
 
   Color get textColor => Color(textColorValue);
   Color get backgroundColor => Color(backgroundColorValue);
   Color get panelColor => Color(panelColorValue);
+
+  String? get resolvedFontFamily {
+    if (fontFamily == AppFontFamily.custom) {
+      final trimmed = customFontFamily?.trim();
+      if (trimmed == null || trimmed.isEmpty) {
+        return null;
+      }
+      return trimmed;
+    }
+    return fontFamily.fontFamilyName;
+  }
 }

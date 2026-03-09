@@ -27,6 +27,7 @@ class RecurringTaskList extends StatelessWidget {
   Widget build(BuildContext context) {
     final weekly = tasks.where((task) => task.recurrenceType == RecurrenceType.weekly).toList(growable: false);
     final monthly = tasks.where((task) => task.recurrenceType == RecurrenceType.monthly).toList(growable: false);
+    final titleStyle = Theme.of(context).textTheme.titleMedium?.copyWith(fontSize: 18, fontWeight: FontWeight.w700);
     if (weekly.isEmpty && monthly.isEmpty) {
       return const SizedBox.shrink();
     }
@@ -41,7 +42,7 @@ class RecurringTaskList extends StatelessWidget {
         children: [
           Text(
             tr(language, '周期任务', 'Recurring tasks'),
-            style: const TextStyle(fontWeight: FontWeight.w600),
+            style: titleStyle,
           ),
           const SizedBox(height: 8),
           if (weekly.isNotEmpty)

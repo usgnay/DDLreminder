@@ -5,6 +5,7 @@ import 'package:path_provider/path_provider.dart';
 import '../models/app_settings.dart';
 import '../models/task.dart';
 import 'autostart_service.dart';
+import 'font_service.dart';
 import 'settings_service.dart';
 import 'storage_service.dart';
 import 'task_service.dart';
@@ -14,11 +15,13 @@ class ServiceContainer {
     required this.settings,
     required this.tasks,
     required this.autostart,
+    required this.fonts,
   });
 
   final SettingsService settings;
   final TaskService tasks;
   final AutostartService autostart;
+  final FontService fonts;
 }
 
 Future<ServiceContainer> bootstrapApp() async {
@@ -44,10 +47,13 @@ Future<ServiceContainer> bootstrapApp() async {
     await autostartService.apply(enable: true);
   }
 
+  final fontService = FontService();
+
   return ServiceContainer(
     settings: settingsService,
     tasks: taskService,
     autostart: autostartService,
+    fonts: fontService,
   );
 }
 

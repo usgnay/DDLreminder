@@ -5,20 +5,27 @@ import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import '../../core/i18n.dart';
 import '../../models/app_settings.dart';
 import '../../services/autostart_service.dart';
+import '../../services/font_service.dart';
 import '../../services/settings_service.dart';
 
-Future<void> showSettingsDialog(BuildContext context, SettingsService settings, AutostartService autostart) {
+Future<void> showSettingsDialog(
+  BuildContext context,
+  SettingsService settings,
+  AutostartService autostart,
+  FontService fonts,
+) {
   return showDialog<void>(
     context: context,
-    builder: (_) => _SettingsDialog(settings: settings, autostart: autostart),
+    builder: (_) => _SettingsDialog(settings: settings, autostart: autostart, fonts: fonts),
   );
 }
 
 class _SettingsDialog extends StatefulWidget {
-  const _SettingsDialog({required this.settings, required this.autostart});
+  const _SettingsDialog({required this.settings, required this.autostart, required this.fonts});
 
   final SettingsService settings;
   final AutostartService autostart;
+  final FontService fonts;
 
   @override
   State<_SettingsDialog> createState() => _SettingsDialogState();
@@ -32,6 +39,8 @@ class _SettingsDialogState extends State<_SettingsDialog> {
   late TextEditingController _panelColorController;
   final _formKey = GlobalKey<FormState>();
   bool _saving = false;
+  late Future<List<String>> _fontsFuture;
+  late final bool _fontEnumerationSupported;
 
   @override
   void initState() {
@@ -41,6 +50,8 @@ class _SettingsDialogState extends State<_SettingsDialog> {
     _textColorController = TextEditingController(text: _hexFromColor(_working.textColorValue));
     _backgroundColorController = TextEditingController(text: _hexFromColor(_working.backgroundColorValue));
     _panelColorController = TextEditingController(text: _hexFromColor(_working.panelColorValue));
+    _fontEnumerationSupported = widget.fonts.isEnumerationSupported;
+    _fontsFuture = _fontEnumerationSupported ? widget.fonts.installedFonts() : Future.value(const []);
   }
 
   @override
@@ -87,6 +98,41 @@ class _SettingsDialogState extends State<_SettingsDialog> {
                     setState(() => _working = _working.copyWith(language: value));
                   },
                 ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<AppFontFamily>(
+                  initialValue: _working.fontFamily,
+                  decoration: InputDecoration(labelText: tr(lang, '界面字体', 'Interface font')),
+                  items: AppFontFamily.values
+                      .map(
+                        (font) => DropdownMenuItem(
+                          value: font,
+                          child: Text(font.displayName(lang)),
+                        ),
+                      )
+                      .toList(growable: false),
+                  onChanged: (value) {
+                    if (value == null) return;
+                    setState(() => _working = _working.copyWith(fontFamily: value, customFontFamily: value == AppFontFamily.custom ? _working.customFontFamily : null));
+                  },
+                ),
+                if (_working.fontFamily == AppFontFamily.custom) ...[
+                  const SizedBox(height: 12),
+                  if (_fontEnumerationSupported)
+                    _CustomFontPicker(
+                      future: _fontsFuture,
+                      language: lang,
+                      selected: _working.customFontFamily,
+                      onChanged: (value) => setState(() => _working = _working.copyWith(customFontFamily: value?.trim())),
+                    )
+                  else
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        tr(lang, '当前平台暂不支持列出系统字体，请手动输入', 'System fonts cannot be listed on this platform.'),
+                        style: Theme.of(context).textTheme.bodyMedium,
+                      ),
+                    ),
+                ],
                 ListTile(
                   title: Text(tr(lang, '提醒阈值 (天)', 'Reminder threshold (days)')),
                   subtitle: Slider(
@@ -292,5 +338,75 @@ class _SettingsDialogState extends State<_SettingsDialog> {
     final hex = _hexFromColor(picked.value);
     controller.text = hex;
     onValidColor(picked.value);
+  }
+}
+
+class _CustomFontPicker extends StatelessWidget {
+  const _CustomFontPicker({
+    required this.future,
+    required this.language,
+    required this.selected,
+    required this.onChanged,
+  });
+
+  final Future<List<String>> future;
+  final AppLanguage language;
+  final String? selected;
+  final ValueChanged<String?> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<List<String>>(
+      future: future,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Padding(
+            padding: EdgeInsets.symmetric(vertical: 8),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)),
+            ),
+          );
+        }
+        if (snapshot.hasError) {
+          return Text(
+            tr(language, '字体列表加载失败，请稍后再试', 'Failed to load system fonts. Please retry.'),
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Theme.of(context).colorScheme.error),
+          );
+        }
+        final fonts = snapshot.data ?? const [];
+        if (fonts.isEmpty) {
+          return Text(tr(language, '未检测到可用系统字体', 'No system fonts detected.'));
+        }
+        final items = fonts
+          .map((font) => DropdownMenuItem<String>(
+              value: font,
+              child: Text(font, overflow: TextOverflow.ellipsis),
+            ))
+          .toList(growable: true);
+        if (selected != null && selected!.isNotEmpty && !fonts.contains(selected)) {
+          items.insert(
+            0,
+            DropdownMenuItem<String>(
+              value: selected,
+              child: Text('${selected!} (${tr(language, '当前设备缺少', 'missing')})', overflow: TextOverflow.ellipsis),
+            ),
+          );
+        }
+        return DropdownButtonFormField<String>(
+          value: selected?.isNotEmpty == true ? selected : null,
+          decoration: InputDecoration(labelText: tr(language, '选择系统字体', 'Choose a system font')),
+          items: items,
+          isExpanded: true,
+          onChanged: onChanged,
+          validator: (value) {
+            if (value == null || value.isEmpty) {
+              return tr(language, '请选择字体', 'Select a font');
+            }
+            return null;
+          },
+        );
+      },
+    );
   }
 }

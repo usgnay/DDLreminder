@@ -59,7 +59,6 @@ class _DesktopShellState extends State<DesktopShell> {
     );
     await windowManager.waitUntilReadyToShow(options, () async {
       // Keep the widget acting like a sticky note: frameless and anchored beneath other windows.
-      await windowManager.setResizable(false);
       await windowManager.setHasShadow(false);
       await windowManager.setAlwaysOnTop(false);
       await windowManager.setAlwaysOnBottom(true);
@@ -147,7 +146,7 @@ class _DesktopShellState extends State<DesktopShell> {
   }
 
   Future<void> _openSettings() async {
-    await showSettingsDialog(context, settings, widget.container.autostart);
+    await showSettingsDialog(context, settings, widget.container.autostart, widget.container.fonts);
   }
 
   Future<void> _handleDeleteTask(Task task) async {
