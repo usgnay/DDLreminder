@@ -19,6 +19,7 @@ class TaskBoard extends StatelessWidget {
     required this.onImportTasks,
     required this.onDragWindow,
     required this.onDeleteTask,
+    required this.onCloseApp,
   });
 
   final AppSettings settings;
@@ -30,6 +31,7 @@ class TaskBoard extends StatelessWidget {
   final VoidCallback onImportTasks;
   final VoidCallback onDragWindow;
   final void Function(Task task) onDeleteTask;
+  final VoidCallback onCloseApp;
 
   @override
   Widget build(BuildContext context) {
@@ -53,6 +55,7 @@ class TaskBoard extends StatelessWidget {
             today: today,
             onDragWindow: onDragWindow,
             onOpenSettings: onOpenSettings,
+            onCloseApp: onCloseApp,
             secondaryColor: secondaryTextColor,
             language: settings.language,
           ),
@@ -134,6 +137,7 @@ class _Header extends StatelessWidget {
     required this.slogan,
     required this.today,
     required this.onOpenSettings,
+    required this.onCloseApp,
     required this.onDragWindow,
     required this.secondaryColor,
     required this.language,
@@ -142,6 +146,7 @@ class _Header extends StatelessWidget {
   final String slogan;
   final String today;
   final VoidCallback onOpenSettings;
+  final VoidCallback onCloseApp;
   final VoidCallback onDragWindow;
   final Color secondaryColor;
   final AppLanguage language;
@@ -166,6 +171,11 @@ class _Header extends StatelessWidget {
             tooltip: tr(language, '设置', 'Settings'),
             onPressed: onOpenSettings,
             icon: const Icon(Icons.settings_outlined),
+          ),
+          IconButton(
+            tooltip: tr(language, '关闭', 'Close'),
+            onPressed: onCloseApp,
+            icon: const Icon(Icons.close),
           ),
         ],
       ),

@@ -54,11 +54,22 @@ class _DesktopShellState extends State<DesktopShell> {
       center: true,
       title: 'DDLreminder',
       backgroundColor: Colors.transparent,
+      skipTaskbar: true,
+      titleBarStyle: TitleBarStyle.hidden,
     );
     await windowManager.waitUntilReadyToShow(options, () async {
+      // Keep the widget acting like a sticky note: frameless and anchored beneath other windows.
+      await windowManager.setResizable(false);
+      await windowManager.setHasShadow(false);
+      await windowManager.setAlwaysOnTop(false);
+      await windowManager.setAlwaysOnBottom(true);
       await windowManager.show();
       await windowManager.focus();
     });
+  }
+
+  Future<void> _closeApp() async {
+    await windowManager.close();
   }
 
   void _scheduleMidnightRefresh() {
@@ -176,6 +187,7 @@ class _DesktopShellState extends State<DesktopShell> {
               onImportTasks: _handleImport,
               onDragWindow: () => windowManager.startDragging(),
               onDeleteTask: _handleDeleteTask,
+              onCloseApp: _closeApp,
             ),
           ),
         );
