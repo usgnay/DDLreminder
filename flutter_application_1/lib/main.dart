@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:intl/intl.dart';
 
@@ -30,10 +31,22 @@ class TaskWidgetApp extends StatelessWidget {
       builder: (context, _) {
         final currentSettings = container.settings.value;
         Intl.defaultLocale = currentSettings.language.localeCode;
+        final locale = currentSettings.language == AppLanguage.zh
+            ? const Locale('zh', 'CN')
+            : const Locale('en', 'US');
         return MaterialApp(
           title: 'DDLreminder',
           debugShowCheckedModeBanner: false,
-          locale: Locale(currentSettings.language == AppLanguage.zh ? 'zh' : 'en'),
+          locale: locale,
+          supportedLocales: const [
+            Locale('en', 'US'),
+            Locale('zh', 'CN'),
+          ],
+          localizationsDelegates: const [
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
           theme: buildTheme(currentSettings),
           home: DesktopShell(container: container),
         );
