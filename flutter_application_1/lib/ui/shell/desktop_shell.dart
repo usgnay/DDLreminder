@@ -54,14 +54,14 @@ class _DesktopShellState extends State<DesktopShell> {
       center: true,
       title: 'DDLreminder',
       backgroundColor: Colors.transparent,
-      skipTaskbar: true,
+      skipTaskbar: false,
       titleBarStyle: TitleBarStyle.hidden,
     );
     await windowManager.waitUntilReadyToShow(options, () async {
       // Keep the widget acting like a sticky note: frameless and anchored beneath other windows.
       await windowManager.setHasShadow(false);
       await windowManager.setAlwaysOnTop(false);
-      await windowManager.setAlwaysOnBottom(true);
+      await windowManager.setAlwaysOnBottom(false);
       await windowManager.show();
       await windowManager.focus();
     });
@@ -90,11 +90,7 @@ class _DesktopShellState extends State<DesktopShell> {
       return;
     }
     final lang = settings.value.language;
-    final dueSoon = filterDueSoon(
-      tasks.tasks,
-      settings.value,
-      DateTime.now(),
-    );
+    final dueSoon = filterDueSoon(tasks.tasks, settings.value, DateTime.now());
     if (dueSoon.isEmpty) {
       return;
     }
@@ -113,10 +109,17 @@ class _DesktopShellState extends State<DesktopShell> {
               final now = DateTime.now();
               final days = task.daysLeft(now);
               final dueDate = task.nextDueDate(now);
-              final dateText = DateFormat('yyyy-MM-dd', lang.localeCode).format(dueDate);
+              final dateText = DateFormat(
+                'yyyy-MM-dd',
+                lang.localeCode,
+              ).format(dueDate);
               final desc = days >= 0
                   ? tr(lang, '剩余 $days 天', '$days day(s) left')
-                  : tr(lang, '已逾期 ${days.abs()} 天', 'Overdue ${days.abs()} day(s)');
+                  : tr(
+                      lang,
+                      '已逾期 ${days.abs()} 天',
+                      'Overdue ${days.abs()} day(s)',
+                    );
               return ListTile(
                 dense: true,
                 title: Text(task.title),
@@ -126,7 +129,10 @@ class _DesktopShellState extends State<DesktopShell> {
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: Text(tr(lang, '好的', 'Got it'))),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(tr(lang, '好的', 'Got it')),
+          ),
         ],
       ),
     );
@@ -146,7 +152,12 @@ class _DesktopShellState extends State<DesktopShell> {
   }
 
   Future<void> _openSettings() async {
-    await showSettingsDialog(context, settings, widget.container.autostart, widget.container.fonts);
+    await showSettingsDialog(
+      context,
+      settings,
+      widget.container.autostart,
+      widget.container.fonts,
+    );
   }
 
   Future<void> _handleDeleteTask(Task task) async {
@@ -155,10 +166,22 @@ class _DesktopShellState extends State<DesktopShell> {
       context: context,
       builder: (_) => AlertDialog(
         title: Text(tr(lang, '删除任务', 'Delete task')),
-        content: Text(tr(lang, '确定要删除“${task.title}”吗？该操作不可撤销。', 'Delete “${task.title}”? This cannot be undone.')),
+        content: Text(
+          tr(
+            lang,
+            '确定要删除“${task.title}”吗？该操作不可撤销。',
+            'Delete “${task.title}”? This cannot be undone.',
+          ),
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: Text(tr(lang, '取消', 'Cancel'))),
-          FilledButton(onPressed: () => Navigator.pop(context, true), child: Text(tr(lang, '删除', 'Delete'))),
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(tr(lang, '取消', 'Cancel')),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: Text(tr(lang, '删除', 'Delete')),
+          ),
         ],
       ),
     );
@@ -180,7 +203,16 @@ class _DesktopShellState extends State<DesktopShell> {
               settings: settings.value,
               tasks: snapshot,
               onToggle: (task) => tasks.toggle(task.id),
-              onOpenDetails: (task) => showTaskDetailDialog(context, task, settings.value.language),
+              onOpenDetails: (task) async {
+                final updated = await showTaskDetailDialog(
+                  context,
+                  task,
+                  settings.value.language,
+                );
+                if (updated != null) {
+                  await tasks.update(updated);
+                }
+              },
               onAddTask: _handleAddTask,
               onOpenSettings: _openSettings,
               onImportTasks: _handleImport,
