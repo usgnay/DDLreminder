@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
@@ -35,7 +37,8 @@ class TaskBoard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final today = DateFormat.yMMMMd(settings.language.localeCode).format(DateTime.now());
+    final now = DateTime.now();
+    final today = DateFormat.yMMMMd(settings.language.localeCode).format(now);
     final secondaryTextColor = settings.textColor.withOpacity(.65);
     final panelSurfaceColor = settings.panelColor.withOpacity(settings.surfaceOpacity);
     final recurringSurfaceColor = settings.panelColor.withOpacity((settings.surfaceOpacity * .88).clamp(.45, 1.0));
@@ -47,99 +50,132 @@ class TaskBoard extends StatelessWidget {
         if (a.completed != b.completed) {
           return a.completed ? 1 : -1;
         }
-        return a.nextDueDate(DateTime.now()).compareTo(b.nextDueDate(DateTime.now()));
+        return a.nextDueDate(now).compareTo(b.nextDueDate(now));
       });
+    final usingImageBackground = settings.backgroundMode == BackgroundMode.image;
+    final backgroundImagePath = settings.backgroundImagePath?.trim();
+    final backgroundFile = backgroundImagePath == null || backgroundImagePath.isEmpty ? null : File(backgroundImagePath);
+    final hasBackgroundImage = usingImageBackground && backgroundFile != null && backgroundFile.existsSync();
 
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _Header(
-            slogan: settings.slogan,
-            today: today,
-            onDragWindow: onDragWindow,
-            onOpenSettings: onOpenSettings,
-            onCloseApp: onCloseApp,
-            secondaryColor: secondaryTextColor,
-            language: settings.language,
-          ),
-          const SizedBox(height: 12),
-          if (showRecurringPanel && recurringTasks.isNotEmpty) ...[
-            RecurringTaskList(
-              tasks: recurringTasks,
-              onDelete: onDeleteTask,
-              onTap: onOpenDetails,
-              accentColor: settings.textColor,
-              surfaceColor: recurringSurfaceColor,
-              urgencyTintColor: settings.urgencyTintColor,
-              urgencyOverlayOpacity: settings.urgencyOverlayOpacity,
-              onToggle: onToggle,
-              language: settings.language,
+    return Stack(
+      children: [
+        if (!usingImageBackground)
+          Positioned.fill(
+            child: ColoredBox(
+              color: settings.backgroundColor.withOpacity(settings.surfaceOpacity),
             ),
-            const SizedBox(height: 12),
-          ],
-          Expanded(
-            child: Container(
-              decoration: BoxDecoration(
-                color: panelSurfaceColor,
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: const [
-                  BoxShadow(color: Colors.black12, blurRadius: 16, offset: Offset(0, 8)),
-                ],
+          ),
+        if (hasBackgroundImage)
+          Positioned.fill(
+            child: Opacity(
+              opacity: settings.backgroundImageOpacity.clamp(.05, 1.0),
+              child: Image.file(
+                backgroundFile,
+                fit: settings.backgroundImageFit == BackgroundImageFit.cover ? BoxFit.cover : BoxFit.contain,
+                alignment: Alignment(settings.backgroundImageFocusX, settings.backgroundImageFocusY),
+                filterQuality: FilterQuality.medium,
+                errorBuilder: (_, __, ___) => const SizedBox.shrink(),
               ),
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              child: regularTasks.isEmpty
-                  ? Center(
-                      child: Text(
-                        recurringTasks.isEmpty
-                            ? tr(settings.language, '目前还没有任务，点击下方 + 创建新任务', 'No tasks yet, tap + to create one')
-                            : tr(settings.language, '当前没有一次性任务，周期任务在上方列表', 'Only recurring tasks now, see the list above'),
-                        style: theme.textTheme.bodyMedium?.copyWith(color: secondaryTextColor),
-                      ),
-                    )
-                  : ListView.separated(
-                      itemCount: regularTasks.length,
-                      itemBuilder: (context, index) {
-                        final task = regularTasks[index];
-                        final days = task.daysLeft(DateTime.now());
-                        return TaskTile(
-                          task: task,
-                          daysLeft: days,
-                          urgencyTintColor: settings.urgencyTintColor,
-                          urgencyOverlayOpacity: settings.urgencyOverlayOpacity,
-                          onToggle: () => onToggle(task),
-                          onTap: () => onOpenDetails(task),
-                          onDelete: () => onDeleteTask(task),
-                          language: settings.language,
-                        );
-                      },
-                      separatorBuilder: (_, __) => Divider(height: 1, color: secondaryTextColor.withOpacity(.2)),
-                    ),
             ),
           ),
-          const SizedBox(height: 12),
-          Row(
+        if (hasBackgroundImage && settings.backgroundImageOverlayOpacity > 0)
+          Positioned.fill(
+            child: ColoredBox(
+              color: settings.backgroundImageOverlayColor.withOpacity(settings.backgroundImageOverlayOpacity),
+            ),
+          ),
+        Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              _Header(
+                slogan: settings.slogan,
+                today: today,
+                onDragWindow: onDragWindow,
+                onOpenSettings: onOpenSettings,
+                onCloseApp: onCloseApp,
+                secondaryColor: secondaryTextColor,
+                language: settings.language,
+              ),
+              const SizedBox(height: 12),
+              if (showRecurringPanel && recurringTasks.isNotEmpty) ...[
+                RecurringTaskList(
+                  tasks: recurringTasks,
+                  onDelete: onDeleteTask,
+                  onTap: onOpenDetails,
+                  accentColor: settings.textColor,
+                  surfaceColor: recurringSurfaceColor,
+                  urgencyTintColor: settings.urgencyTintColor,
+                  urgencyOverlayOpacity: settings.urgencyOverlayOpacity,
+                  onToggle: onToggle,
+                  language: settings.language,
+                ),
+                const SizedBox(height: 12),
+              ],
               Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: onImportTasks,
-                  icon: const Icon(Icons.file_upload_outlined),
-                  label: Text(tr(settings.language, '导入任务', 'Import tasks')),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: panelSurfaceColor,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: const [
+                      BoxShadow(color: Colors.black12, blurRadius: 16, offset: Offset(0, 8)),
+                    ],
+                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  child: regularTasks.isEmpty
+                      ? Center(
+                          child: Text(
+                            recurringTasks.isEmpty
+                                ? tr(settings.language, '目前还没有任务，点击下方 + 创建新任务', 'No tasks yet, tap + to create one')
+                                : tr(settings.language, '当前没有一次性任务，周期任务在上方列表', 'Only recurring tasks now, see the list above'),
+                            style: theme.textTheme.bodyMedium?.copyWith(color: secondaryTextColor),
+                          ),
+                        )
+                      : ListView.separated(
+                          itemCount: regularTasks.length,
+                          itemBuilder: (context, index) {
+                            final task = regularTasks[index];
+                            final days = task.daysLeft(now);
+                            return TaskTile(
+                              task: task,
+                              daysLeft: days,
+                              urgencyTintColor: settings.urgencyTintColor,
+                              urgencyOverlayOpacity: settings.urgencyOverlayOpacity,
+                              onToggle: () => onToggle(task),
+                              onTap: () => onOpenDetails(task),
+                              onDelete: () => onDeleteTask(task),
+                              language: settings.language,
+                            );
+                          },
+                          separatorBuilder: (_, __) => Divider(height: 1, color: secondaryTextColor.withOpacity(.2)),
+                        ),
                 ),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: FilledButton.icon(
-                  onPressed: onAddTask,
-                  icon: const Icon(Icons.add),
-                  label: Text(tr(settings.language, '新建任务', 'Add task')),
-                ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: onImportTasks,
+                      icon: const Icon(Icons.file_upload_outlined),
+                      label: Text(tr(settings.language, '导入任务', 'Import tasks')),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: FilledButton.icon(
+                      onPressed: onAddTask,
+                      icon: const Icon(Icons.add),
+                      label: Text(tr(settings.language, '新建任务', 'Add task')),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
@@ -173,9 +209,15 @@ class _Header extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(slogan, style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w600)),
+                Text(
+                  slogan,
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w600),
+                ),
                 const SizedBox(height: 4),
-                Text(today, style: Theme.of(context).textTheme.labelMedium?.copyWith(color: secondaryColor)),
+                Text(
+                  today,
+                  style: Theme.of(context).textTheme.labelMedium?.copyWith(color: secondaryColor),
+                ),
               ],
             ),
           ),

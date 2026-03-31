@@ -15,5 +15,10 @@ class SettingsService extends ValueNotifier<AppSettings> {
   Future<void> update(AppSettings next) async {
     value = next;
     await _storage.writeSettings(next);
+    await _storage.cleanupBackgroundImageCache(activePath: next.backgroundImagePath);
   }
+
+  Future<String> cacheBackgroundImage(String sourcePath) => _storage.cacheBackgroundImage(sourcePath);
+
+  Future<void> cleanupBackgroundImageCache() => _storage.cleanupBackgroundImageCache(activePath: value.backgroundImagePath);
 }

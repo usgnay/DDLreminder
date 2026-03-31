@@ -37,10 +37,12 @@ Future<ServiceContainer> bootstrapApp() async {
   final storage = StorageService(
     tasksFile: File('${dataDir.path}/tasks.json'),
     settingsFile: File('${dataDir.path}/settings.json'),
+    dataDir: dataDir,
   );
 
   final settingsService = SettingsService(storage);
   await settingsService.load();
+  await settingsService.cleanupBackgroundImageCache();
 
   final taskService = TaskService(storage);
   await taskService.load();
