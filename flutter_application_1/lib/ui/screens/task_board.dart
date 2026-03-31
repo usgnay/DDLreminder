@@ -37,14 +37,19 @@ class TaskBoard extends StatelessWidget {
   Widget build(BuildContext context) {
     final today = DateFormat.yMMMMd(settings.language.localeCode).format(DateTime.now());
     final secondaryTextColor = settings.textColor.withOpacity(.65);
+    final panelSurfaceColor = settings.panelColor.withOpacity(settings.surfaceOpacity);
+    final recurringSurfaceColor = settings.panelColor.withOpacity((settings.surfaceOpacity * .88).clamp(.45, 1.0));
     final theme = Theme.of(context);
     final showRecurringPanel = settings.showRecurringPanel;
-    final recurringTasks = showRecurringPanel
-        ? tasks.where((task) => task.isRecurring).toList(growable: false)
-        : const <Task>[];
-    final regularTasks = showRecurringPanel
-        ? tasks.where((task) => !task.isRecurring).toList(growable: false)
-        : tasks;
+    final recurringTasks = showRecurringPanel ? tasks.where((task) => task.isRecurring).toList(growable: false) : const <Task>[];
+    final regularTasks = (showRecurringPanel ? tasks.where((task) => !task.isRecurring).toList() : tasks.toList())
+      ..sort((a, b) {
+        if (a.completed != b.completed) {
+          return a.completed ? 1 : -1;
+        }
+        return a.nextDueDate(DateTime.now()).compareTo(b.nextDueDate(DateTime.now()));
+      });
+
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -66,6 +71,9 @@ class TaskBoard extends StatelessWidget {
               onDelete: onDeleteTask,
               onTap: onOpenDetails,
               accentColor: settings.textColor,
+              surfaceColor: recurringSurfaceColor,
+              urgencyTintColor: settings.urgencyTintColor,
+              urgencyOverlayOpacity: settings.urgencyOverlayOpacity,
               onToggle: onToggle,
               language: settings.language,
             ),
@@ -74,17 +82,19 @@ class TaskBoard extends StatelessWidget {
           Expanded(
             child: Container(
               decoration: BoxDecoration(
-                color: settings.panelColor,
+                color: panelSurfaceColor,
                 borderRadius: BorderRadius.circular(16),
-                boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 16, offset: Offset(0, 8))],
+                boxShadow: const [
+                  BoxShadow(color: Colors.black12, blurRadius: 16, offset: Offset(0, 8)),
+                ],
               ),
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               child: regularTasks.isEmpty
                   ? Center(
                       child: Text(
                         recurringTasks.isEmpty
-                            ? tr(settings.language, '目前还没有任务，点击下方的 + 创建新任务', 'No tasks yet, tap + to create one')
-                            : tr(settings.language, '当下没有一次性任务，周期任务在上方列表', 'Only recurring tasks now, see the list above'),
+                            ? tr(settings.language, '目前还没有任务，点击下方 + 创建新任务', 'No tasks yet, tap + to create one')
+                            : tr(settings.language, '当前没有一次性任务，周期任务在上方列表', 'Only recurring tasks now, see the list above'),
                         style: theme.textTheme.bodyMedium?.copyWith(color: secondaryTextColor),
                       ),
                     )
@@ -96,6 +106,8 @@ class TaskBoard extends StatelessWidget {
                         return TaskTile(
                           task: task,
                           daysLeft: days,
+                          urgencyTintColor: settings.urgencyTintColor,
+                          urgencyOverlayOpacity: settings.urgencyOverlayOpacity,
                           onToggle: () => onToggle(task),
                           onTap: () => onOpenDetails(task),
                           onDelete: () => onDeleteTask(task),

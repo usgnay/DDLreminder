@@ -24,8 +24,9 @@ extension AppFontFamilyX on AppFontFamily {
         return 'notoSans';
       case AppFontFamily.inter:
         return 'inter';
+      case AppFontFamily.custom:
+        return 'custom';
       case AppFontFamily.system:
-      default:
         return 'system';
     }
   }
@@ -34,13 +35,12 @@ extension AppFontFamilyX on AppFontFamily {
     final zh = language == AppLanguage.zh;
     switch (this) {
       case AppFontFamily.notoSans:
-        return zh ? '思源黑体（Noto Sans）' : 'Noto Sans';
+        return zh ? '思源黑体 (Noto Sans)' : 'Noto Sans';
       case AppFontFamily.inter:
         return zh ? 'Inter（英文字体）' : 'Inter';
       case AppFontFamily.custom:
         return zh ? '自定义（系统字体）' : 'Custom (system font)';
       case AppFontFamily.system:
-      default:
         return zh ? '系统默认' : 'System default';
     }
   }
@@ -52,9 +52,7 @@ extension AppFontFamilyX on AppFontFamily {
       case AppFontFamily.inter:
         return 'Inter';
       case AppFontFamily.custom:
-        return null;
       case AppFontFamily.system:
-      default:
         return null;
     }
   }
@@ -80,6 +78,9 @@ class AppSettings {
   final int textColorValue;
   final int backgroundColorValue;
   final int panelColorValue;
+  final double surfaceOpacity;
+  final int urgencyTintColorValue;
+  final double urgencyOverlayOpacity;
   final String slogan;
   final bool showRecurringPanel;
   final int weeklyReminderDays;
@@ -94,6 +95,9 @@ class AppSettings {
     required this.textColorValue,
     required this.backgroundColorValue,
     required this.panelColorValue,
+    required this.surfaceOpacity,
+    required this.urgencyTintColorValue,
+    required this.urgencyOverlayOpacity,
     required this.slogan,
     required this.showRecurringPanel,
     required this.weeklyReminderDays,
@@ -110,6 +114,9 @@ class AppSettings {
       textColorValue: Colors.black.value,
       backgroundColorValue: const Color(0xFFF5F5F7).value,
       panelColorValue: Colors.white.value,
+      surfaceOpacity: .92,
+      urgencyTintColorValue: const Color(0xFFC98A72).value,
+      urgencyOverlayOpacity: .10,
       slogan: '专注每一天',
       showRecurringPanel: true,
       weeklyReminderDays: 2,
@@ -126,6 +133,9 @@ class AppSettings {
     int? textColorValue,
     int? backgroundColorValue,
     int? panelColorValue,
+    double? surfaceOpacity,
+    int? urgencyTintColorValue,
+    double? urgencyOverlayOpacity,
     String? slogan,
     bool? showRecurringPanel,
     int? weeklyReminderDays,
@@ -140,6 +150,9 @@ class AppSettings {
       textColorValue: textColorValue ?? this.textColorValue,
       backgroundColorValue: backgroundColorValue ?? this.backgroundColorValue,
       panelColorValue: panelColorValue ?? this.panelColorValue,
+      surfaceOpacity: surfaceOpacity ?? this.surfaceOpacity,
+      urgencyTintColorValue: urgencyTintColorValue ?? this.urgencyTintColorValue,
+      urgencyOverlayOpacity: urgencyOverlayOpacity ?? this.urgencyOverlayOpacity,
       slogan: slogan ?? this.slogan,
       showRecurringPanel: showRecurringPanel ?? this.showRecurringPanel,
       weeklyReminderDays: weeklyReminderDays ?? this.weeklyReminderDays,
@@ -157,6 +170,9 @@ class AppSettings {
       textColorValue: json['textColorValue'] as int? ?? Colors.black.value,
       backgroundColorValue: json['backgroundColorValue'] as int? ?? const Color(0xFFF5F5F7).value,
       panelColorValue: json['panelColorValue'] as int? ?? Colors.white.value,
+      surfaceOpacity: (json['surfaceOpacity'] as num?)?.toDouble() ?? .92,
+      urgencyTintColorValue: json['urgencyTintColorValue'] as int? ?? const Color(0xFFC98A72).value,
+      urgencyOverlayOpacity: (json['urgencyOverlayOpacity'] as num?)?.toDouble() ?? .10,
       slogan: json['slogan'] as String? ?? '专注每一天',
       showRecurringPanel: json['showRecurringPanel'] as bool? ?? true,
       weeklyReminderDays: json['weeklyReminderDays'] as int? ?? 2,
@@ -174,6 +190,9 @@ class AppSettings {
       'textColorValue': textColorValue,
       'backgroundColorValue': backgroundColorValue,
       'panelColorValue': panelColorValue,
+      'surfaceOpacity': surfaceOpacity,
+      'urgencyTintColorValue': urgencyTintColorValue,
+      'urgencyOverlayOpacity': urgencyOverlayOpacity,
       'slogan': slogan,
       'showRecurringPanel': showRecurringPanel,
       'weeklyReminderDays': weeklyReminderDays,
@@ -187,6 +206,7 @@ class AppSettings {
   Color get textColor => Color(textColorValue);
   Color get backgroundColor => Color(backgroundColorValue);
   Color get panelColor => Color(panelColorValue);
+  Color get urgencyTintColor => Color(urgencyTintColorValue);
 
   String? get resolvedFontFamily {
     if (fontFamily == AppFontFamily.custom) {

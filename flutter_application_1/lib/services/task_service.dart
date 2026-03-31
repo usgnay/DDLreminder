@@ -6,9 +6,10 @@ import '../models/task.dart';
 import 'storage_service.dart';
 
 class TaskService extends ChangeNotifier {
-  TaskService(this._storage);
+  TaskService(this._storage, {DateTime Function()? clock}) : _clock = clock ?? DateTime.now;
 
   final StorageService _storage;
+  final DateTime Function() _clock;
   List<Task> _tasks = const [];
 
   UnmodifiableListView<Task> get tasks => UnmodifiableListView(_tasks);
@@ -54,12 +55,17 @@ class TaskService extends ChangeNotifier {
     await _persist();
   }
 
+  Future<void> refreshRecurring() async {
+    _sort();
+  }
+
   Future<void> _persist() => _storage.writeTasks(_tasks);
 
   void _sort() {
-    final now = DateTime.now();
+    final now = _clock();
     _tasks.sort((a, b) {
-      if (a.completed != b.completed) {
+      final canUseCompletedOrder = !a.isRecurring && !b.isRecurring;
+      if (canUseCompletedOrder && a.completed != b.completed) {
         return a.completed ? 1 : -1;
       }
       return a.nextDueDate(now).compareTo(b.nextDueDate(now));

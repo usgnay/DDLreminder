@@ -25,6 +25,7 @@ class _AddTaskDialogState extends State<_AddTaskDialog> {
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
+
   DateTime? _deadline;
   bool _recurringEnabled = false;
   RecurrenceType _recurrenceType = RecurrenceType.weekly;
@@ -69,22 +70,26 @@ class _AddTaskDialogState extends State<_AddTaskDialog> {
                 value: _recurringEnabled,
                 onChanged: (value) => setState(() => _recurringEnabled = value),
                 title: Text(tr(lang, '周期任务', 'Recurring task')),
-                subtitle: Text(tr(lang, '用于每周或每月重复的固定提醒', 'Use for weekly or monthly reminders')),
+                subtitle: Text(tr(lang, '用于每周或每月重复提醒', 'Use for weekly or monthly reminders')),
               ),
               const SizedBox(height: 8),
               AnimatedSwitcher(
                 duration: const Duration(milliseconds: 200),
-                child: _recurringEnabled
-                    ? _buildRecurringFields(lang)
-                    : _buildDeadlinePicker(lang),
+                child: _recurringEnabled ? _buildRecurringFields(lang) : _buildDeadlinePicker(lang),
               ),
             ],
           ),
         ),
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: Text(tr(lang, '取消', 'Cancel'))),
-        FilledButton(onPressed: _canSubmit ? _submit : null, child: Text(tr(lang, '保存', 'Save'))),
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: Text(tr(lang, '取消', 'Cancel')),
+        ),
+        FilledButton(
+          onPressed: _canSubmit ? _submit : null,
+          child: Text(tr(lang, '保存', 'Save')),
+        ),
       ],
     );
   }
@@ -116,21 +121,25 @@ class _AddTaskDialogState extends State<_AddTaskDialog> {
       children: [
         DropdownButtonFormField<RecurrenceType>(
           initialValue: _recurrenceType,
-          decoration: InputDecoration(labelText: tr(language, '循环类型', 'Recurrence type')),
+          decoration: InputDecoration(labelText: tr(language, '周期类型', 'Recurrence type')),
           items: [
             DropdownMenuItem(value: RecurrenceType.weekly, child: Text(tr(language, '每周', 'Weekly'))),
             DropdownMenuItem(value: RecurrenceType.monthly, child: Text(tr(language, '每月', 'Monthly'))),
           ],
           onChanged: (value) {
-            if (value == null) return;
+            if (value == null) {
+              return;
+            }
             setState(() => _recurrenceType = value);
           },
         ),
         const SizedBox(height: 8),
-        if (_recurrenceType == RecurrenceType.weekly)
-          _buildWeeklySelector(language)
-        else
-          _buildMonthlySelector(language),
+        if (_recurrenceType == RecurrenceType.weekly) _buildWeeklySelector(language) else _buildMonthlySelector(language),
+        const SizedBox(height: 8),
+        Text(
+          tr(language, '周期任务不需要单独设置截止日期，系统会根据周期自动计算下次提醒。', 'Recurring tasks do not need a separate deadline. The app calculates the next reminder from the cycle.'),
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
         const SizedBox(height: 8),
         _buildReminderSelector(language),
       ],
@@ -174,7 +183,9 @@ class _AddTaskDialogState extends State<_AddTaskDialog> {
           )
           .toList(growable: false),
       onChanged: (value) {
-        if (value == null) return;
+        if (value == null) {
+          return;
+        }
         setState(() => _monthlyDay = value);
       },
     );
@@ -187,8 +198,8 @@ class _AddTaskDialogState extends State<_AddTaskDialog> {
       subtitle: Slider(
         value: _recurrenceReminderDays.toDouble(),
         min: 1,
-        max: 3,
-        divisions: 2,
+        max: 7,
+        divisions: 6,
         label: language == AppLanguage.zh ? '$_recurrenceReminderDays 天' : '$_recurrenceReminderDays day(s)',
         onChanged: (value) => setState(() => _recurrenceReminderDays = value.round()),
       ),
@@ -199,10 +210,7 @@ class _AddTaskDialogState extends State<_AddTaskDialog> {
     if (_titleController.text.trim().isEmpty) {
       return false;
     }
-    if (_recurringEnabled) {
-      return true;
-    }
-    return _deadline != null;
+    return _recurringEnabled || _deadline != null;
   }
 
   Future<void> _pickDate() async {
@@ -216,9 +224,7 @@ class _AddTaskDialogState extends State<_AddTaskDialog> {
       locale: Locale(widget.language == AppLanguage.zh ? 'zh' : 'en'),
     );
     if (picked != null) {
-      setState(() {
-        _deadline = DateTime(picked.year, picked.month, picked.day);
-      });
+      setState(() => _deadline = DateTime(picked.year, picked.month, picked.day));
     }
   }
 
@@ -226,25 +232,25 @@ class _AddTaskDialogState extends State<_AddTaskDialog> {
     if (!(_formKey.currentState?.validate() ?? false) || !_canSubmit) {
       return;
     }
-    final now = DateTime.now();
-    final recurrenceType = _recurringEnabled ? _recurrenceType : RecurrenceType.none;
-    final recurrenceValue = _recurringEnabled
-        ? (_recurrenceType == RecurrenceType.weekly ? _weeklyDay : _monthlyDay)
-        : null;
-    final recurrenceReminder = _recurringEnabled ? _recurrenceReminderDays : null;
-    final resolvedDeadline = _recurringEnabled
-        ? Task.projectNextOccurrence(recurrenceType, recurrenceValue, now)
-        : _deadline!;
-    final task = Task(
-      id: Task.freshId(_titleController.text),
-      title: _titleController.text.trim(),
-      description: _descriptionController.text.trim(),
-      deadline: resolvedDeadline,
-      completed: false,
-      recurrenceType: recurrenceType,
-      recurrenceValue: recurrenceValue,
-      recurrenceReminderDays: recurrenceReminder,
-    );
+
+    final task = _recurringEnabled
+        ? Task.recurring(
+            id: Task.freshId(_titleController.text),
+            title: _titleController.text.trim(),
+            description: _descriptionController.text.trim(),
+            recurrenceType: _recurrenceType,
+            recurrenceValue: _recurrenceType == RecurrenceType.weekly ? _weeklyDay : _monthlyDay,
+            recurrenceReminderDays: _recurrenceReminderDays,
+            completed: false,
+          )
+        : Task.oneOff(
+            id: Task.freshId(_titleController.text),
+            title: _titleController.text.trim(),
+            description: _descriptionController.text.trim(),
+            deadline: _deadline!,
+            completed: false,
+          );
+
     Navigator.pop(context, task);
   }
 }

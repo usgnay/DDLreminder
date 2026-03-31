@@ -131,20 +131,29 @@ class _ImportDialogState extends State<_ImportDialog> {
             issues.add(widget.language == AppLanguage.zh ? '第 ${i + 1} 行缺少 recurrenceValue' : 'Row ${i + 1} missing recurrenceValue');
             continue;
           }
-          deadline = Task.projectNextOccurrence(recurrenceType, recurrenceValue, DateTime.now());
+          final now = DateTime.now();
+          deadline = DateTime(now.year, now.month, now.day);
         }
+        final taskId = node['id'] as String? ?? Task.freshId(title);
         final normalizedDeadline = DateTime(deadline.year, deadline.month, deadline.day);
         buffer.add(
-          Task(
-            id: node['id'] as String? ?? Task.freshId(title),
-            title: title,
-            description: description,
-            deadline: normalizedDeadline,
-            completed: completed,
-            recurrenceType: recurrenceType,
-            recurrenceValue: recurrenceType == RecurrenceType.none ? null : recurrenceValue,
-            recurrenceReminderDays: recurrenceType == RecurrenceType.none ? null : (recurrenceReminderDays ?? 2),
-          ),
+          recurrenceType == RecurrenceType.none
+              ? Task.oneOff(
+                  id: taskId,
+                  title: title,
+                  description: description,
+                  deadline: normalizedDeadline,
+                  completed: completed,
+                )
+              : Task.recurring(
+                  id: taskId,
+                  title: title,
+                  description: description,
+                  recurrenceType: recurrenceType,
+                  recurrenceValue: recurrenceValue!,
+                  recurrenceReminderDays: recurrenceReminderDays ?? 2,
+                  completed: completed,
+                ),
         );
       }
       if (buffer.isEmpty) {

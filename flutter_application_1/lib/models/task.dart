@@ -9,7 +9,7 @@ class Task {
   final String id;
   final String title;
   final String description;
-  final DateTime deadline;
+  final DateTime? deadline;
   final bool completed;
   final RecurrenceType recurrenceType;
   final int? recurrenceValue;
@@ -26,11 +26,49 @@ class Task {
     this.recurrenceReminderDays,
   });
 
+  factory Task.oneOff({
+    required String id,
+    required String title,
+    required String description,
+    required DateTime deadline,
+    required bool completed,
+  }) {
+    return Task(
+      id: id,
+      title: title,
+      description: description,
+      deadline: _dateOnly(deadline),
+      completed: completed,
+    );
+  }
+
+  factory Task.recurring({
+    required String id,
+    required String title,
+    required String description,
+    required RecurrenceType recurrenceType,
+    required int recurrenceValue,
+    required int recurrenceReminderDays,
+    required bool completed,
+  }) {
+    return Task(
+      id: id,
+      title: title,
+      description: description,
+      deadline: null,
+      completed: completed,
+      recurrenceType: recurrenceType,
+      recurrenceValue: recurrenceValue,
+      recurrenceReminderDays: recurrenceReminderDays,
+    );
+  }
+
   Task copyWith({
     String? id,
     String? title,
     String? description,
     DateTime? deadline,
+    bool clearDeadline = false,
     bool? completed,
     RecurrenceType? recurrenceType,
     int? recurrenceValue,
@@ -40,7 +78,7 @@ class Task {
       id: id ?? this.id,
       title: title ?? this.title,
       description: description ?? this.description,
-      deadline: deadline ?? this.deadline,
+      deadline: clearDeadline ? null : (deadline ?? this.deadline),
       completed: completed ?? this.completed,
       recurrenceType: recurrenceType ?? this.recurrenceType,
       recurrenceValue: recurrenceValue ?? this.recurrenceValue,
@@ -49,15 +87,17 @@ class Task {
   }
 
   factory Task.fromJson(Map<String, dynamic> json) {
-    final parsedDeadline = DateTime.tryParse(json['deadline'] as String? ?? '') ?? DateTime.now();
-    final sanitizedDeadline = DateTime(parsedDeadline.year, parsedDeadline.month, parsedDeadline.day);
+    final recurrenceType = _parseRecurrence(json['recurrenceType'] as String?);
+    final parsedDeadline = DateTime.tryParse(json['deadline'] as String? ?? '');
+    final normalizedDeadline = parsedDeadline == null ? null : _dateOnly(parsedDeadline);
+
     return Task(
       id: json['id'] as String? ?? _makeId(json['title'] as String? ?? ''),
       title: json['title'] as String? ?? '未命名任务',
       description: json['description'] as String? ?? '',
-      deadline: sanitizedDeadline,
+      deadline: recurrenceType == RecurrenceType.none ? normalizedDeadline ?? _dateOnly(DateTime.now()) : null,
       completed: json['completed'] as bool? ?? false,
-      recurrenceType: _parseRecurrence(json['recurrenceType'] as String?),
+      recurrenceType: recurrenceType,
       recurrenceValue: json['recurrenceValue'] as int?,
       recurrenceReminderDays: json['recurrenceReminderDays'] as int?,
     );
@@ -68,7 +108,7 @@ class Task {
       'id': id,
       'title': title,
       'description': description,
-      'deadline': deadline.toIso8601String(),
+      'deadline': deadline?.toIso8601String(),
       'completed': completed,
       'recurrenceType': recurrenceType.name,
       'recurrenceValue': recurrenceValue,
@@ -76,27 +116,27 @@ class Task {
     };
   }
 
+  bool get isRecurring => recurrenceType != RecurrenceType.none;
+
+  DateTime? get oneOffDeadline => isRecurring ? null : deadline;
+
   int daysLeft(DateTime today) {
-    final dateOnlyDeadline = _effectiveDeadline(today);
-    final dateOnlyToday = DateTime(today.year, today.month, today.day);
+    final dateOnlyDeadline = nextDueDate(today);
+    final dateOnlyToday = _dateOnly(today);
     return dateOnlyDeadline.difference(dateOnlyToday).inDays;
   }
 
   bool get isOverdue {
     final today = DateTime.now();
-    return daysLeft(today) < 0 && !completed;
+    return !isRecurring && daysLeft(today) < 0 && !completed;
   }
 
-  bool get isRecurring => recurrenceType != RecurrenceType.none;
-
-  DateTime nextDueDate(DateTime reference) => _effectiveDeadline(reference);
-
-  DateTime _effectiveDeadline(DateTime today) {
-    final sanitizedToday = DateTime(today.year, today.month, today.day);
+  DateTime nextDueDate(DateTime reference) {
     if (!isRecurring) {
-      return DateTime(deadline.year, deadline.month, deadline.day);
+      return deadline ?? _dateOnly(reference);
     }
-    return Task.projectNextOccurrence(recurrenceType, recurrenceValue, sanitizedToday);
+    final sanitizedToday = _dateOnly(reference);
+    return projectNextOccurrence(recurrenceType, recurrenceValue, sanitizedToday);
   }
 
   static String freshId([String seed = '']) {
@@ -120,7 +160,7 @@ class Task {
   }
 
   static DateTime projectNextOccurrence(RecurrenceType type, int? recurrenceValue, DateTime from) {
-    final sanitizedFrom = DateTime(from.year, from.month, from.day);
+    final sanitizedFrom = _dateOnly(from);
     switch (type) {
       case RecurrenceType.weekly:
         final targetWeekday = (recurrenceValue ?? sanitizedFrom.weekday).clamp(1, 7);
@@ -144,12 +184,14 @@ class Task {
         final actualDay = desiredDay > lastDay ? lastDay : desiredDay;
         return DateTime(year, month, actualDay);
       case RecurrenceType.none:
-        return DateTime(from.year, from.month, from.day);
+        return sanitizedFrom;
     }
   }
 
+  static DateTime _dateOnly(DateTime value) => DateTime(value.year, value.month, value.day);
+
   static int _daysInMonth(int year, int month) {
-    final firstDayNextMonth = (month == 12) ? DateTime(year + 1, 1, 1) : DateTime(year, month + 1, 1);
+    final firstDayNextMonth = month == 12 ? DateTime(year + 1, 1, 1) : DateTime(year, month + 1, 1);
     return firstDayNextMonth.subtract(const Duration(days: 1)).day;
   }
 }

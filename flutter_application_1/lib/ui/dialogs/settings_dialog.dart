@@ -32,11 +32,15 @@ class _SettingsDialog extends StatefulWidget {
 }
 
 class _SettingsDialogState extends State<_SettingsDialog> {
+  static const double _recurringReminderMin = 1;
+  static const double _recurringReminderMax = 7;
+
   late AppSettings _working;
   late TextEditingController _sloganController;
   late TextEditingController _textColorController;
   late TextEditingController _backgroundColorController;
   late TextEditingController _panelColorController;
+  late TextEditingController _urgencyTintColorController;
   final _formKey = GlobalKey<FormState>();
   bool _saving = false;
   late Future<List<String>> _fontsFuture;
@@ -45,11 +49,12 @@ class _SettingsDialogState extends State<_SettingsDialog> {
   @override
   void initState() {
     super.initState();
-    _working = widget.settings.value;
+    _working = _normalizeSettings(widget.settings.value);
     _sloganController = TextEditingController(text: _working.slogan);
     _textColorController = TextEditingController(text: _hexFromColor(_working.textColorValue));
     _backgroundColorController = TextEditingController(text: _hexFromColor(_working.backgroundColorValue));
     _panelColorController = TextEditingController(text: _hexFromColor(_working.panelColorValue));
+    _urgencyTintColorController = TextEditingController(text: _hexFromColor(_working.urgencyTintColorValue));
     _fontEnumerationSupported = widget.fonts.isEnumerationSupported;
     _fontsFuture = _fontEnumerationSupported ? widget.fonts.installedFonts() : Future.value(const []);
   }
@@ -60,6 +65,7 @@ class _SettingsDialogState extends State<_SettingsDialog> {
     _textColorController.dispose();
     _backgroundColorController.dispose();
     _panelColorController.dispose();
+    _urgencyTintColorController.dispose();
     super.dispose();
   }
 
@@ -67,6 +73,9 @@ class _SettingsDialogState extends State<_SettingsDialog> {
   Widget build(BuildContext context) {
     final lang = _working.language;
     final maxDialogHeight = MediaQuery.of(context).size.height * .65;
+    final weeklyReminderValue = _clampRecurringReminder(_working.weeklyReminderDays).toDouble();
+    final monthlyReminderValue = _clampRecurringReminder(_working.monthlyReminderDays).toDouble();
+
     return AlertDialog(
       title: Text(tr(lang, '设置', 'Settings')),
       content: ConstrainedBox(
@@ -88,13 +97,12 @@ class _SettingsDialogState extends State<_SettingsDialog> {
                   initialValue: _working.language,
                   decoration: InputDecoration(labelText: tr(lang, '界面语言', 'Interface language')),
                   items: AppLanguage.values
-                      .map((language) => DropdownMenuItem(
-                            value: language,
-                            child: Text(language.displayName),
-                          ))
+                      .map((language) => DropdownMenuItem(value: language, child: Text(language.displayName)))
                       .toList(growable: false),
                   onChanged: (value) {
-                    if (value == null) return;
+                    if (value == null) {
+                      return;
+                    }
                     setState(() => _working = _working.copyWith(language: value));
                   },
                 ),
@@ -103,16 +111,18 @@ class _SettingsDialogState extends State<_SettingsDialog> {
                   initialValue: _working.fontFamily,
                   decoration: InputDecoration(labelText: tr(lang, '界面字体', 'Interface font')),
                   items: AppFontFamily.values
-                      .map(
-                        (font) => DropdownMenuItem(
-                          value: font,
-                          child: Text(font.displayName(lang)),
-                        ),
-                      )
+                      .map((font) => DropdownMenuItem(value: font, child: Text(font.displayName(lang))))
                       .toList(growable: false),
                   onChanged: (value) {
-                    if (value == null) return;
-                    setState(() => _working = _working.copyWith(fontFamily: value, customFontFamily: value == AppFontFamily.custom ? _working.customFontFamily : null));
+                    if (value == null) {
+                      return;
+                    }
+                    setState(() {
+                      _working = _working.copyWith(
+                        fontFamily: value,
+                        customFontFamily: value == AppFontFamily.custom ? _working.customFontFamily : null,
+                      );
+                    });
                   },
                 ),
                 if (_working.fontFamily == AppFontFamily.custom) ...[
@@ -143,9 +153,7 @@ class _SettingsDialogState extends State<_SettingsDialog> {
                     label: lang == AppLanguage.zh
                         ? '${_working.reminderThresholdDays} 天'
                         : '${_working.reminderThresholdDays} day(s)',
-                    onChanged: (value) => setState(
-                      () => _working = _working.copyWith(reminderThresholdDays: value.round()),
-                    ),
+                    onChanged: (value) => setState(() => _working = _working.copyWith(reminderThresholdDays: value.round())),
                   ),
                 ),
                 SwitchListTile.adaptive(
@@ -158,12 +166,11 @@ class _SettingsDialogState extends State<_SettingsDialog> {
                 ListTile(
                   title: Text(tr(lang, '每周任务提醒阈值 (天)', 'Weekly reminder lead time (days)')),
                   subtitle: Slider(
-                    value: _working.weeklyReminderDays.toDouble(),
-                    min: 1,
-                    max: 3,
-                    divisions: 2,
-                    label:
-                        lang == AppLanguage.zh ? '${_working.weeklyReminderDays} 天' : '${_working.weeklyReminderDays} day(s)',
+                    value: weeklyReminderValue,
+                    min: _recurringReminderMin,
+                    max: _recurringReminderMax,
+                    divisions: (_recurringReminderMax - _recurringReminderMin).round(),
+                    label: lang == AppLanguage.zh ? '${weeklyReminderValue.round()} 天' : '${weeklyReminderValue.round()} day(s)',
                     onChanged: _working.showRecurringPanel
                         ? (value) => setState(() => _working = _working.copyWith(weeklyReminderDays: value.round()))
                         : null,
@@ -172,12 +179,11 @@ class _SettingsDialogState extends State<_SettingsDialog> {
                 ListTile(
                   title: Text(tr(lang, '每月任务提醒阈值 (天)', 'Monthly reminder lead time (days)')),
                   subtitle: Slider(
-                    value: _working.monthlyReminderDays.toDouble(),
-                    min: 1,
-                    max: 3,
-                    divisions: 2,
-                    label:
-                        lang == AppLanguage.zh ? '${_working.monthlyReminderDays} 天' : '${_working.monthlyReminderDays} day(s)',
+                    value: monthlyReminderValue,
+                    min: _recurringReminderMin,
+                    max: _recurringReminderMax,
+                    divisions: (_recurringReminderMax - _recurringReminderMin).round(),
+                    label: lang == AppLanguage.zh ? '${monthlyReminderValue.round()} 天' : '${monthlyReminderValue.round()} day(s)',
                     onChanged: _working.showRecurringPanel
                         ? (value) => setState(() => _working = _working.copyWith(monthlyReminderDays: value.round()))
                         : null,
@@ -210,13 +216,48 @@ class _SettingsDialogState extends State<_SettingsDialog> {
                   language: lang,
                 ),
                 const SizedBox(height: 8),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(tr(lang, '窗口背景透明度', 'Window surface opacity')),
+                  subtitle: Slider(
+                    value: _working.surfaceOpacity,
+                    min: .55,
+                    max: 1,
+                    divisions: 9,
+                    label: '${(_working.surfaceOpacity * 100).round()}%',
+                    onChanged: (value) => setState(() => _working = _working.copyWith(surfaceOpacity: value)),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                _buildHexColorField(
+                  label: tr(lang, '临期提示颜色 (HEX)', 'Urgency tint color (HEX)'),
+                  controller: _urgencyTintColorController,
+                  onValidColor: (value) => setState(() => _working = _working.copyWith(urgencyTintColorValue: value)),
+                  language: lang,
+                ),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(tr(lang, '临期遮罩强度', 'Urgency overlay strength')),
+                  subtitle: Slider(
+                    value: _working.urgencyOverlayOpacity,
+                    min: .04,
+                    max: .22,
+                    divisions: 9,
+                    label: '${(_working.urgencyOverlayOpacity * 100).round()}%',
+                    onChanged: (value) => setState(() => _working = _working.copyWith(urgencyOverlayOpacity: value)),
+                  ),
+                ),
+                const SizedBox(height: 8),
               ],
             ),
           ),
         ),
       ),
       actions: [
-        TextButton(onPressed: _saving ? null : () => Navigator.pop(context), child: Text(tr(lang, '取消', 'Cancel'))),
+        TextButton(
+          onPressed: _saving ? null : () => Navigator.pop(context),
+          child: Text(tr(lang, '取消', 'Cancel')),
+        ),
         FilledButton(
           onPressed: _saving ? null : _save,
           child: _saving
@@ -232,11 +273,30 @@ class _SettingsDialogState extends State<_SettingsDialog> {
       return;
     }
     setState(() => _saving = true);
-    await widget.settings.update(_working.copyWith(slogan: _sloganController.text.trim()));
+    await widget.settings.update(_normalizeSettings(_working.copyWith(slogan: _sloganController.text.trim())));
     await widget.autostart.apply(enable: _working.autoLaunch);
     if (mounted) {
       Navigator.pop(context);
     }
+  }
+
+  AppSettings _normalizeSettings(AppSettings settings) {
+    return settings.copyWith(
+      weeklyReminderDays: _clampRecurringReminder(settings.weeklyReminderDays),
+      monthlyReminderDays: _clampRecurringReminder(settings.monthlyReminderDays),
+      surfaceOpacity: settings.surfaceOpacity.clamp(.55, 1.0),
+      urgencyOverlayOpacity: settings.urgencyOverlayOpacity.clamp(.04, .22),
+    );
+  }
+
+  int _clampRecurringReminder(int value) {
+    if (value < _recurringReminderMin) {
+      return _recurringReminderMin.round();
+    }
+    if (value > _recurringReminderMax) {
+      return _recurringReminderMax.round();
+    }
+    return value;
   }
 
   String _hexFromColor(int value) => value.toRadixString(16).padLeft(8, '0').substring(2).toUpperCase();
@@ -253,11 +313,7 @@ class _SettingsDialogState extends State<_SettingsDialog> {
       children: [
         TextFormField(
           controller: controller,
-          decoration: InputDecoration(
-            labelText: label,
-            prefixText: '#',
-            counterText: '',
-          ),
+          decoration: InputDecoration(labelText: label, prefixText: '#', counterText: ''),
           maxLength: 6,
           inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9a-fA-F]'))],
           validator: (value) => _validateHex(value, language),
@@ -319,18 +375,27 @@ class _SettingsDialogState extends State<_SettingsDialog> {
     Color temp = Color(_parseHex(controller.text) ?? Colors.black.value);
     final picked = await showDialog<Color>(
       context: context,
-      builder: (_) => AlertDialog(
-        title: Text(tr(language, '选择颜色', 'Pick a color')),
-        content: ColorPicker(
-          pickerColor: temp,
-          enableAlpha: false,
-          onColorChanged: (color) => temp = color,
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: Text(tr(language, '取消', 'Cancel'))),
-          FilledButton(onPressed: () => Navigator.pop(context, temp), child: Text(tr(language, '确定', 'OK'))),
-        ],
-      ),
+      builder: (dialogContext) {
+        final size = MediaQuery.of(dialogContext).size;
+        return AlertDialog(
+          title: Text(tr(language, '选择颜色', 'Pick a color')),
+          content: ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: 380, maxHeight: size.height * .62),
+            child: SingleChildScrollView(
+              child: ColorPicker(
+                pickerColor: temp,
+                enableAlpha: false,
+                portraitOnly: true,
+                onColorChanged: (color) => temp = color,
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(dialogContext), child: Text(tr(language, '取消', 'Cancel'))),
+            FilledButton(onPressed: () => Navigator.pop(dialogContext, temp), child: Text(tr(language, '确定', 'OK'))),
+          ],
+        );
+      },
     );
     if (picked == null) {
       return;
@@ -379,11 +444,8 @@ class _CustomFontPicker extends StatelessWidget {
           return Text(tr(language, '未检测到可用系统字体', 'No system fonts detected.'));
         }
         final items = fonts
-          .map((font) => DropdownMenuItem<String>(
-              value: font,
-              child: Text(font, overflow: TextOverflow.ellipsis),
-            ))
-          .toList(growable: true);
+            .map((font) => DropdownMenuItem<String>(value: font, child: Text(font, overflow: TextOverflow.ellipsis)))
+            .toList(growable: true);
         if (selected != null && selected!.isNotEmpty && !fonts.contains(selected)) {
           items.insert(
             0,

@@ -36,10 +36,8 @@ class _EditableTaskDialogState extends State<_EditableTaskDialog> {
   void initState() {
     super.initState();
     _titleController = TextEditingController(text: widget.task.title);
-    _descriptionController = TextEditingController(
-      text: widget.task.description,
-    );
-    _deadline = widget.task.deadline;
+    _descriptionController = TextEditingController(text: widget.task.description);
+    _deadline = widget.task.oneOffDeadline ?? DateTime.now();
   }
 
   @override
@@ -53,6 +51,7 @@ class _EditableTaskDialogState extends State<_EditableTaskDialog> {
   Widget build(BuildContext context) {
     final lang = widget.language;
     final formatter = DateFormat('yyyy-MM-dd', lang.localeCode);
+    final nextDue = widget.task.nextDueDate(DateTime.now());
 
     return AlertDialog(
       title: Text(tr(lang, '编辑任务', 'Edit task')),
@@ -81,26 +80,36 @@ class _EditableTaskDialogState extends State<_EditableTaskDialog> {
                 minLines: 2,
                 maxLines: 4,
               ),
-              const SizedBox(height: 12),
-              Text(
-                tr(lang, '截止日期', 'Deadline'),
-                style: Theme.of(context).textTheme.labelLarge,
-              ),
-              const SizedBox(height: 6),
-              Row(
-                children: [
-                  Expanded(child: Text(formatter.format(_deadline))),
-                  TextButton(
-                    onPressed: _pickDate,
-                    child: Text(tr(lang, '选择日期', 'Pick date')),
-                  ),
-                ],
-              ),
               if (widget.task.isRecurring) ...[
-                const SizedBox(height: 10),
+                const SizedBox(height: 12),
                 Text(
                   _recurrenceLabel(widget.task, lang),
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  tr(
+                    lang,
+                    '下次提醒：${formatter.format(nextDue)}',
+                    'Next reminder: ${formatter.format(nextDue)}',
+                  ),
                   style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ] else ...[
+                const SizedBox(height: 12),
+                Text(
+                  tr(lang, '截止日期', 'Deadline'),
+                  style: Theme.of(context).textTheme.labelLarge,
+                ),
+                const SizedBox(height: 6),
+                Row(
+                  children: [
+                    Expanded(child: Text(formatter.format(_deadline))),
+                    TextButton(
+                      onPressed: _pickDate,
+                      child: Text(tr(lang, '选择日期', 'Pick date')),
+                    ),
+                  ],
                 ),
               ],
             ],
@@ -127,9 +136,7 @@ class _EditableTaskDialogState extends State<_EditableTaskDialog> {
       locale: Locale(widget.language == AppLanguage.zh ? 'zh' : 'en'),
     );
     if (picked != null) {
-      setState(
-        () => _deadline = DateTime(picked.year, picked.month, picked.day),
-      );
+      setState(() => _deadline = DateTime(picked.year, picked.month, picked.day));
     }
   }
 
@@ -140,7 +147,8 @@ class _EditableTaskDialogState extends State<_EditableTaskDialog> {
     final updatedTask = widget.task.copyWith(
       title: _titleController.text.trim(),
       description: _descriptionController.text.trim(),
-      deadline: DateTime(_deadline.year, _deadline.month, _deadline.day),
+      deadline: widget.task.isRecurring ? null : DateTime(_deadline.year, _deadline.month, _deadline.day),
+      clearDeadline: widget.task.isRecurring,
     );
     Navigator.pop(context, updatedTask);
   }
