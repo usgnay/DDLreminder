@@ -3,7 +3,8 @@ param(
   [switch]$AllowDirty,
   [switch]$AutoCommitDirty,
   [string]$CommitMessage = '',
-  [string]$ReleaseNotes = ''
+  [string]$ReleaseNotes = '',
+  [string]$Token = ''
 )
 
 Set-StrictMode -Version Latest
@@ -119,6 +120,9 @@ function Get-ReleaseBody {
   if (-not [string]::IsNullOrWhiteSpace($Notes)) {
     return $Notes
   }
+  if (-not [string]::IsNullOrWhiteSpace($env:DDLREMINDER_RELEASE_NOTES)) {
+    return $env:DDLREMINDER_RELEASE_NOTES.Trim()
+  }
   return "Release $Version"
 }
 
@@ -138,6 +142,10 @@ function Publish-WithGh {
   Write-Log 'Publishing with GitHub CLI'
   & gh release view $Tag --repo "$repoOwner/$repoName" | Out-Null
   if ($LASTEXITCODE -eq 0) {
+    & gh release edit $Tag --repo "$repoOwner/$repoName" --title $Tag --notes $Body
+    if ($LASTEXITCODE -ne 0) {
+      throw 'Failed to update release notes with gh.'
+    }
     & gh release upload $Tag $ZipPath --repo "$repoOwner/$repoName" --clobber
     if ($LASTEXITCODE -ne 0) {
       throw 'Failed to upload release asset with gh.'
@@ -152,13 +160,23 @@ function Publish-WithGh {
 }
 
 function Get-Token {
+  if (-not [string]::IsNullOrWhiteSpace($Token)) {
+    return $Token
+  }
+  if (-not [string]::IsNullOrWhiteSpace($env:DDLREMINDER_GITHUB_TOKEN)) {
+    return $env:DDLREMINDER_GITHUB_TOKEN
+  }
   if (-not [string]::IsNullOrWhiteSpace($env:GITHUB_TOKEN)) {
     return $env:GITHUB_TOKEN
   }
   if (-not [string]::IsNullOrWhiteSpace($env:GH_TOKEN)) {
     return $env:GH_TOKEN
   }
-  throw 'Missing GitHub credential. Install gh or set GITHUB_TOKEN / GH_TOKEN.'
+  $promptedToken = Read-Host 'Enter GitHub token (leave blank to cancel)'
+  if (-not [string]::IsNullOrWhiteSpace($promptedToken)) {
+    return $promptedToken.Trim()
+  }
+  throw 'Missing GitHub credential. Install gh or set GITHUB_TOKEN / GH_TOKEN, or provide -Token.'
 }
 
 function Invoke-GitHubApi {
@@ -218,6 +236,15 @@ function Publish-WithApi {
     } | ConvertTo-Json
 
     $release = Invoke-GitHubApi -Method Post -Uri "https://api.github.com/repos/$repoOwner/$repoName/releases" -Body $payload
+  } else {
+    $payload = @{
+      name = $Tag
+      body = $Body
+      draft = $false
+      prerelease = $false
+    } | ConvertTo-Json
+
+    $release = Invoke-GitHubApi -Method Patch -Uri "https://api.github.com/repos/$repoOwner/$repoName/releases/$($release.id)" -Body $payload
   }
 
   $assetName = Split-Path -Leaf $ZipPath

@@ -46,10 +46,16 @@ Preferred:
 powershell -ExecutionPolicy Bypass -File .\scripts\publish_github_release.ps1
 ```
 
+Or double-click:
+
+- `scripts\publish_github_release.bat`
+
 This script will:
 
 - verify version from `pubspec.yaml`
 - optionally run the build script
+- support entering a release message interactively
+- support entering a GitHub token interactively
 - create and push tag `v<version>`
 - create or update the GitHub Release
 - upload `dist\DDLReminder-windows-release.zip`
@@ -58,6 +64,13 @@ Authentication:
 
 - Preferred: GitHub CLI `gh`
 - Fallback: set `GITHUB_TOKEN` or `GH_TOKEN`
+- Interactive fallback: enter a token in `publish_github_release.bat`
+
+Optional parameters for PowerShell:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\publish_github_release.ps1 -ReleaseNotes "Bug fixes and UI polish" -Token "<github token>"
+```
 
 Manual steps if needed:
 
