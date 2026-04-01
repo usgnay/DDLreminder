@@ -10,6 +10,7 @@ import 'settings_service.dart';
 import 'storage_service.dart';
 import 'system_shell_service.dart';
 import 'task_service.dart';
+import 'update_service.dart';
 
 class ServiceContainer {
   ServiceContainer({
@@ -18,6 +19,7 @@ class ServiceContainer {
     required this.autostart,
     required this.fonts,
     required this.systemShell,
+    required this.updates,
   });
 
   final SettingsService settings;
@@ -25,6 +27,7 @@ class ServiceContainer {
   final AutostartService autostart;
   final FontService fonts;
   final SystemShellService systemShell;
+  final UpdateService updates;
 }
 
 Future<ServiceContainer> bootstrapApp() async {
@@ -54,6 +57,7 @@ Future<ServiceContainer> bootstrapApp() async {
 
   final fontService = FontService();
   final systemShellService = SystemShellService();
+  final updateService = UpdateService();
 
   return ServiceContainer(
     settings: settingsService,
@@ -61,6 +65,7 @@ Future<ServiceContainer> bootstrapApp() async {
     autostart: autostartService,
     fonts: fontService,
     systemShell: systemShellService,
+    updates: updateService,
   );
 }
 

@@ -331,6 +331,7 @@ class _DesktopShellState extends State<DesktopShell> {
       settings,
       widget.container.autostart,
       widget.container.fonts,
+      widget.container.updates,
     );
   }
 

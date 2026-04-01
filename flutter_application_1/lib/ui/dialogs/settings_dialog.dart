@@ -10,16 +10,18 @@ import '../../models/app_settings.dart';
 import '../../services/autostart_service.dart';
 import '../../services/font_service.dart';
 import '../../services/settings_service.dart';
+import '../../services/update_service.dart';
 
 Future<void> showSettingsDialog(
   BuildContext context,
   SettingsService settings,
   AutostartService autostart,
   FontService fonts,
+  UpdateService updates,
 ) {
   return showDialog<void>(
     context: context,
-    builder: (_) => _SettingsDialog(settings: settings, autostart: autostart, fonts: fonts),
+    builder: (_) => _SettingsDialog(settings: settings, autostart: autostart, fonts: fonts, updates: updates),
   );
 }
 
@@ -28,11 +30,13 @@ class _SettingsDialog extends StatefulWidget {
     required this.settings,
     required this.autostart,
     required this.fonts,
+    required this.updates,
   });
 
   final SettingsService settings;
   final AutostartService autostart;
   final FontService fonts;
+  final UpdateService updates;
 
   @override
   State<_SettingsDialog> createState() => _SettingsDialogState();
@@ -51,7 +55,9 @@ class _SettingsDialogState extends State<_SettingsDialog> {
   late TextEditingController _backgroundOverlayColorController;
   final _formKey = GlobalKey<FormState>();
   bool _saving = false;
+  bool _checkingUpdate = false;
   late Future<List<String>> _fontsFuture;
+  late Future<String> _versionFuture;
   late final bool _fontEnumerationSupported;
 
   @override
@@ -66,6 +72,7 @@ class _SettingsDialogState extends State<_SettingsDialog> {
     _backgroundOverlayColorController = TextEditingController(text: _hexFromColor(_working.backgroundImageOverlayColorValue));
     _fontEnumerationSupported = widget.fonts.isEnumerationSupported;
     _fontsFuture = _fontEnumerationSupported ? widget.fonts.installedFonts() : Future.value(const []);
+    _versionFuture = widget.updates.currentVersion();
   }
 
   @override
@@ -96,6 +103,28 @@ class _SettingsDialogState extends State<_SettingsDialog> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
+                FutureBuilder<String>(
+                  future: _versionFuture,
+                  builder: (context, snapshot) {
+                    final version = snapshot.data ?? '--';
+                    return ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: Text(tr(lang, '当前版本', 'Current version')),
+                      subtitle: Text(version),
+                      trailing: FilledButton.tonal(
+                        onPressed: _checkingUpdate ? null : () => _checkForUpdates(lang),
+                        child: _checkingUpdate
+                            ? const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            : Text(tr(lang, '检查更新', 'Check updates')),
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(height: 8),
                 SwitchListTile(
                   value: _working.autoLaunch,
                   onChanged: (value) => setState(() => _working = _working.copyWith(autoLaunch: value)),
@@ -557,6 +586,89 @@ class _SettingsDialogState extends State<_SettingsDialog> {
     if (mounted) {
       Navigator.pop(context);
     }
+  }
+
+  Future<void> _checkForUpdates(AppLanguage language) async {
+    setState(() => _checkingUpdate = true);
+    final result = await widget.updates.checkForUpdate();
+    if (!mounted) {
+      return;
+    }
+    setState(() => _checkingUpdate = false);
+
+    if (result.release == null) {
+      await showDialog<void>(
+        context: context,
+        builder: (_) => AlertDialog(
+          title: Text(tr(language, '更新检查失败', 'Update check failed')),
+          content: Text(result.message ?? tr(language, '未获取到发布信息', 'Release information was unavailable.')),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(tr(language, '确定', 'OK')),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+
+    if (!result.hasUpdate) {
+      await showDialog<void>(
+        context: context,
+        builder: (_) => AlertDialog(
+          title: Text(tr(language, '已经是最新版本', 'Already up to date')),
+          content: Text(
+            tr(
+              language,
+              '当前版本 ${result.currentVersion} 已经是最新版本。',
+              'Current version ${result.currentVersion} is already the latest.',
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(tr(language, '确定', 'OK')),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: Text(tr(language, '发现新版本', 'Update available')),
+        content: Text(
+          tr(
+            language,
+            '当前版本 ${result.currentVersion}，最新版本 ${result.release!.version}。\n确认后将退出应用并开始更新。',
+            'Current version ${result.currentVersion}, latest version ${result.release!.version}.\nThe app will exit and start updating after confirmation.',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(tr(language, '取消', 'Cancel')),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: Text(tr(language, '立即更新', 'Update now')),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) {
+      return;
+    }
+
+    await widget.updates.startUpdate(result.release!);
+    if (!mounted) {
+      return;
+    }
+    Navigator.pop(context);
   }
 
   AppSettings _normalizeSettings(AppSettings settings) {
