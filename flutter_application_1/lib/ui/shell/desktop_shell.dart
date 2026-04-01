@@ -27,6 +27,7 @@ class DesktopShell extends StatefulWidget {
 
 class _DesktopShellState extends State<DesktopShell> {
   Timer? _midnightTick;
+  Timer? _minuteTick;
   bool _reminderShown = false;
 
   TaskService get tasks => widget.container.tasks;
@@ -38,11 +39,13 @@ class _DesktopShellState extends State<DesktopShell> {
     _configureWindow();
     WidgetsBinding.instance.addPostFrameCallback((_) => _maybeShowReminder());
     _scheduleMidnightRefresh();
+    _scheduleMinuteRefresh();
   }
 
   @override
   void dispose() {
     _midnightTick?.cancel();
+    _minuteTick?.cancel();
     super.dispose();
   }
 
@@ -67,7 +70,122 @@ class _DesktopShellState extends State<DesktopShell> {
   }
 
   Future<void> _closeApp() async {
-    await windowManager.close();
+    final current = settings.value;
+    if (!current.showCloseConfirmDialog) {
+      await _applyCloseAction(current.closeAction);
+      return;
+    }
+
+    final decision = await _showCloseConfirmDialog(current.language, current.closeAction);
+    if (decision == null || !mounted) {
+      return;
+    }
+
+    var nextSettings = current.copyWith(closeAction: decision.action);
+    if (!decision.showNextTime) {
+      nextSettings = nextSettings.copyWith(showCloseConfirmDialog: false);
+    }
+    await settings.update(nextSettings);
+    await _applyCloseAction(decision.action);
+  }
+
+  Future<void> _applyCloseAction(CloseAction action) async {
+    switch (action) {
+      case CloseAction.minimizeToTray:
+        await windowManager.hide();
+        return;
+      case CloseAction.exitApp:
+        await widget.container.systemShell.exitApplication();
+        return;
+    }
+  }
+
+  Future<_CloseDecision?> _showCloseConfirmDialog(
+    AppLanguage language,
+    CloseAction initialAction,
+  ) {
+    return showDialog<_CloseDecision>(
+      context: context,
+      builder: (dialogContext) {
+        var showNextTime = true;
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: Text(tr(language, '关闭应用', 'Close app')),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    tr(
+                      language,
+                      '点击右上角关闭后，你希望应用怎么处理？',
+                      'What should happen when you close the window?',
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton.tonalIcon(
+                      onPressed: () => Navigator.pop(
+                        dialogContext,
+                        _CloseDecision(
+                          action: CloseAction.minimizeToTray,
+                          showNextTime: showNextTime,
+                        ),
+                      ),
+                      icon: const Icon(Icons.minimize_rounded),
+                      label: Text(
+                        tr(language, '最小化到托盘', 'Minimize to tray'),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton.tonalIcon(
+                      onPressed: () => Navigator.pop(
+                        dialogContext,
+                        _CloseDecision(
+                          action: CloseAction.exitApp,
+                          showNextTime: showNextTime,
+                        ),
+                      ),
+                      icon: const Icon(Icons.exit_to_app_rounded),
+                      label: Text(
+                        tr(language, '直接退出', 'Exit directly'),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  CheckboxListTile(
+                    contentPadding: EdgeInsets.zero,
+                    value: showNextTime,
+                    controlAffinity: ListTileControlAffinity.leading,
+                    title: Text(tr(language, '下次继续显示这个窗口', 'Show this dialog next time')),
+                    onChanged: (value) => setDialogState(() => showNextTime = value ?? true),
+                  ),
+                ],
+              ),
+              actions: [
+                if (initialAction == CloseAction.minimizeToTray)
+                  Text(
+                    tr(language, '当前默认：最小化到托盘', 'Current default: minimize to tray'),
+                  )
+                else
+                  Text(
+                    tr(language, '当前默认：直接退出', 'Current default: exit directly'),
+                  ),
+                TextButton(
+                  onPressed: () => Navigator.pop(dialogContext),
+                  child: Text(tr(language, '取消', 'Cancel')),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
   }
 
   void _scheduleMidnightRefresh() {
@@ -84,6 +202,20 @@ class _DesktopShellState extends State<DesktopShell> {
       _maybeShowReminder();
       setState(() {});
       _scheduleMidnightRefresh();
+    });
+  }
+
+  void _scheduleMinuteRefresh() {
+    final now = DateTime.now();
+    final nextMinute = DateTime(now.year, now.month, now.day, now.hour, now.minute + 1);
+    final duration = nextMinute.difference(now);
+    _minuteTick?.cancel();
+    _minuteTick = Timer(duration, () {
+      if (!mounted) {
+        return;
+      }
+      setState(() {});
+      _scheduleMinuteRefresh();
     });
   }
 
@@ -264,4 +396,14 @@ class _DesktopShellState extends State<DesktopShell> {
       },
     );
   }
+}
+
+class _CloseDecision {
+  const _CloseDecision({
+    required this.action,
+    required this.showNextTime,
+  });
+
+  final CloseAction action;
+  final bool showNextTime;
 }

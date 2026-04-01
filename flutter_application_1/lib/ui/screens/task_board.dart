@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:window_manager/window_manager.dart';
 
 import '../../core/i18n.dart';
 import '../../models/app_settings.dart';
@@ -38,7 +39,7 @@ class TaskBoard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final now = DateTime.now();
-    final today = DateFormat.yMMMMd(settings.language.localeCode).format(now);
+    final today = '${DateFormat.yMMMMd(settings.language.localeCode).format(now)}  ${DateFormat('HH:mm').format(now)}';
     final secondaryTextColor = settings.textColor.withOpacity(.65);
     final panelSurfaceColor = settings.panelColor.withOpacity(settings.surfaceOpacity);
     final recurringSurfaceColor = settings.panelColor.withOpacity((settings.surfaceOpacity * .88).clamp(.45, 1.0));
@@ -61,29 +62,40 @@ class TaskBoard extends StatelessWidget {
       children: [
         if (!usingImageBackground)
           Positioned.fill(
-            child: ColoredBox(
-              color: settings.backgroundColor.withOpacity(settings.surfaceOpacity),
+            child: IgnorePointer(
+              child: ColoredBox(
+                color: settings.backgroundColor.withOpacity(settings.surfaceOpacity),
+              ),
             ),
           ),
         if (hasBackgroundImage)
           Positioned.fill(
-            child: Opacity(
-              opacity: settings.backgroundImageOpacity.clamp(.05, 1.0),
-              child: Image.file(
-                backgroundFile,
-                fit: settings.backgroundImageFit == BackgroundImageFit.cover ? BoxFit.cover : BoxFit.contain,
-                alignment: Alignment(settings.backgroundImageFocusX, settings.backgroundImageFocusY),
-                filterQuality: FilterQuality.medium,
-                errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+            child: IgnorePointer(
+              child: Opacity(
+                opacity: settings.backgroundImageOpacity.clamp(.05, 1.0),
+                child: Image.file(
+                  backgroundFile,
+                  fit: settings.backgroundImageFit == BackgroundImageFit.cover ? BoxFit.cover : BoxFit.contain,
+                  alignment: Alignment(settings.backgroundImageFocusX, settings.backgroundImageFocusY),
+                  filterQuality: FilterQuality.medium,
+                  errorBuilder: (context, error, stackTrace) => const SizedBox.shrink(),
+                ),
               ),
             ),
           ),
         if (hasBackgroundImage && settings.backgroundImageOverlayOpacity > 0)
           Positioned.fill(
-            child: ColoredBox(
-              color: settings.backgroundImageOverlayColor.withOpacity(settings.backgroundImageOverlayOpacity),
+            child: IgnorePointer(
+              child: ColoredBox(
+                color: settings.backgroundImageOverlayColor.withOpacity(settings.backgroundImageOverlayOpacity),
+              ),
             ),
           ),
+        const Positioned.fill(
+          child: DragToMoveArea(
+            child: SizedBox.expand(),
+          ),
+        ),
         Padding(
           padding: const EdgeInsets.all(16),
           child: Column(
@@ -148,7 +160,8 @@ class TaskBoard extends StatelessWidget {
                               language: settings.language,
                             );
                           },
-                          separatorBuilder: (_, __) => Divider(height: 1, color: secondaryTextColor.withOpacity(.2)),
+                          separatorBuilder: (context, index) =>
+                              Divider(height: 1, color: secondaryTextColor.withOpacity(.2)),
                         ),
                 ),
               ),
@@ -201,38 +214,64 @@ class _Header extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onPanStart: (_) => onDragWindow(),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  slogan,
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w600),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final titleWidth = (constraints.maxWidth * (2 / 3)).clamp(120.0, constraints.maxWidth);
+
+        return SizedBox(
+          height: 60,
+          child: Stack(
+            children: [
+              const Positioned.fill(
+                child: DragToMoveArea(
+                  child: SizedBox.expand(),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  today,
-                  style: Theme.of(context).textTheme.labelMedium?.copyWith(color: secondaryColor),
-                ),
-              ],
-            ),
+              ),
+              Row(
+                children: [
+                  Expanded(
+                    child: IgnorePointer(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          ConstrainedBox(
+                            constraints: BoxConstraints(maxWidth: titleWidth),
+                            child: Text(
+                              slogan,
+                              maxLines: 1,
+                              softWrap: false,
+                              overflow: TextOverflow.ellipsis,
+                              style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w600),
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            today,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: Theme.of(context).textTheme.labelMedium?.copyWith(color: secondaryColor),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: tr(language, '设置', 'Settings'),
+                    onPressed: onOpenSettings,
+                    icon: const Icon(Icons.settings_outlined),
+                  ),
+                  IconButton(
+                    tooltip: tr(language, '关闭', 'Close'),
+                    onPressed: onCloseApp,
+                    icon: const Icon(Icons.close),
+                  ),
+                ],
+              ),
+            ],
           ),
-          IconButton(
-            tooltip: tr(language, '设置', 'Settings'),
-            onPressed: onOpenSettings,
-            icon: const Icon(Icons.settings_outlined),
-          ),
-          IconButton(
-            tooltip: tr(language, '关闭', 'Close'),
-            onPressed: onCloseApp,
-            icon: const Icon(Icons.close),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 }

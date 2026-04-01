@@ -102,6 +102,36 @@ class _SettingsDialogState extends State<_SettingsDialog> {
                   title: Text(tr(lang, '开机自启动', 'Launch at startup')),
                   subtitle: Text(tr(lang, '适用于桌面安装版本', 'For desktop installations only')),
                 ),
+                SwitchListTile(
+                  value: _working.showCloseConfirmDialog,
+                  onChanged: (value) => setState(() => _working = _working.copyWith(showCloseConfirmDialog: value)),
+                  title: Text(tr(lang, '关闭时显示确认窗口', 'Show close confirmation')),
+                  subtitle: Text(
+                    tr(
+                      lang,
+                      '点击右上角关闭按钮时，先询问是最小化到托盘还是直接退出',
+                      'Ask whether to minimize to tray or exit when closing the window',
+                    ),
+                  ),
+                ),
+                DropdownButtonFormField<CloseAction>(
+                  initialValue: _working.closeAction,
+                  decoration: InputDecoration(labelText: tr(lang, '默认关闭行为', 'Default close action')),
+                  items: CloseAction.values
+                      .map(
+                        (action) => DropdownMenuItem(
+                          value: action,
+                          child: Text(_closeActionLabel(action, lang)),
+                        ),
+                      )
+                      .toList(growable: false),
+                  onChanged: (value) {
+                    if (value != null) {
+                      setState(() => _working = _working.copyWith(closeAction: value));
+                    }
+                  },
+                ),
+                const SizedBox(height: 12),
                 DropdownButtonFormField<AppLanguage>(
                   initialValue: _working.language,
                   decoration: InputDecoration(labelText: tr(lang, '界面语言', 'Interface language')),
@@ -228,6 +258,18 @@ class _SettingsDialogState extends State<_SettingsDialog> {
                     divisions: 9,
                     label: '${(_working.surfaceOpacity * 100).round()}%',
                     onChanged: (value) => setState(() => _working = _working.copyWith(surfaceOpacity: value)),
+                  ),
+                ),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(tr(lang, '标题栏显示宽度', 'Header title width')),
+                  subtitle: Slider(
+                    value: _working.headerTitleMaxWidth,
+                    min: 140,
+                    max: 320,
+                    divisions: 9,
+                    label: '${_working.headerTitleMaxWidth.round()} px',
+                    onChanged: (value) => setState(() => _working = _working.copyWith(headerTitleMaxWidth: value)),
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -381,7 +423,7 @@ class _SettingsDialogState extends State<_SettingsDialog> {
           ),
           if (hasImage) ...[
             const SizedBox(height: 8),
-            _buildBackgroundFocusPreview(language, imagePath!),
+            _buildBackgroundFocusPreview(language, imagePath),
           ],
           const SizedBox(height: 8),
           ListTile(
@@ -449,7 +491,7 @@ class _SettingsDialogState extends State<_SettingsDialog> {
                       imageFile,
                       fit: _working.backgroundImageFit == BackgroundImageFit.cover ? BoxFit.cover : BoxFit.contain,
                       alignment: Alignment(_working.backgroundImageFocusX, _working.backgroundImageFocusY),
-                      errorBuilder: (_, __, ___) => ColoredBox(
+                      errorBuilder: (context, error, stackTrace) => ColoredBox(
                         color: Colors.black12,
                         child: Center(
                           child: Text(tr(language, '预览不可用', 'Preview unavailable')),
@@ -538,6 +580,15 @@ class _SettingsDialogState extends State<_SettingsDialog> {
       return _recurringReminderMax.round();
     }
     return value;
+  }
+
+  String _closeActionLabel(CloseAction action, AppLanguage language) {
+    switch (action) {
+      case CloseAction.minimizeToTray:
+        return tr(language, '最小化到托盘', 'Minimize to tray');
+      case CloseAction.exitApp:
+        return tr(language, '直接退出', 'Exit directly');
+    }
   }
 
   String _hexFromColor(int value) => value.toRadixString(16).padLeft(8, '0').substring(2).toUpperCase();
@@ -722,7 +773,7 @@ class _CustomFontPicker extends StatelessWidget {
           );
         }
         return DropdownButtonFormField<String>(
-          value: selected?.isNotEmpty == true ? selected : null,
+          initialValue: selected?.isNotEmpty == true ? selected : null,
           decoration: InputDecoration(labelText: tr(language, '选择系统字体', 'Choose a system font')),
           items: items,
           isExpanded: true,

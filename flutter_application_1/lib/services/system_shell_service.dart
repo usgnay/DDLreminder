@@ -21,4 +21,15 @@ class SystemShellService {
       // Native shell integration is optional.
     }
   }
+
+  Future<void> exitApplication() async {
+    if (!Platform.isWindows) {
+      exit(0);
+    }
+    try {
+      await _channel.invokeMethod<void>('exitApplication');
+    } catch (_) {
+      exit(0);
+    }
+  }
 }

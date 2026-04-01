@@ -216,6 +216,12 @@ void FlutterWindow::RegisterMethodChannel() {
           return;
         }
 
+        if (call.method_name() == "exitApplication") {
+          ExitFromTray();
+          result->Success();
+          return;
+        }
+
         result->NotImplemented();
       });
 

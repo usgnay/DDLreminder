@@ -40,9 +40,11 @@ class TaskTile extends StatelessWidget {
       urgencyOverlayOpacity,
     );
     final subtitle = _buildSubtitle(effectiveDaysLeft);
-    final formatter = DateFormat('yyyy-MM-dd');
+    final dateFormatter = DateFormat('yyyy-MM-dd');
+    final timeFormatter = DateFormat('HH:mm');
     final deadlineDate = task.isRecurring ? task.nextDueDate(now) : (task.oneOffDeadline ?? now);
-    final deadlineText = formatter.format(deadlineDate);
+    final deadlineText = dateFormatter.format(deadlineDate);
+    final timeText = timeFormatter.format(deadlineDate);
     final recurrenceLabel = task.isRecurring ? _recurrenceText(task) : null;
     final baseColor = Theme.of(context).textTheme.bodyMedium?.color ?? Colors.black;
     final mutedColor = baseColor.withOpacity(.62);
@@ -63,43 +65,54 @@ class TaskTile extends StatelessWidget {
         color: urgency.background,
         borderRadius: BorderRadius.circular(12),
       ),
-      child: ListTile(
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
         onTap: onTap,
-        dense: true,
-        leading: Checkbox(value: task.completed, onChanged: (_) => onToggle()),
-        title: Text(task.title, style: textStyle),
-        subtitle: Text(
-          '${recurrenceLabel != null ? '$recurrenceLabel · ' : ''}$deadlineText · $subtitle',
-          style: TextStyle(color: mutedColor),
-        ),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (urgency.showWarningIcon)
-              Icon(Icons.schedule_rounded, color: urgency.accent.withOpacity(.85), size: 18)
-            else if (task.completed && !task.isRecurring)
-              const Icon(Icons.check_circle, color: Colors.green, size: 18)
-            else
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF1F4F8),
-                  borderRadius: BorderRadius.circular(999),
-                ),
-                child: Text(
-                  language == AppLanguage.zh ? '$effectiveDaysLeft 天' : '$effectiveDaysLeft d',
-                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                        color: baseColor,
-                        fontWeight: FontWeight.w700,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Checkbox(
+                value: task.completed,
+                onChanged: (_) => onToggle(),
+              ),
+              const SizedBox(width: 4),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      task.title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: textStyle,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '${recurrenceLabel != null ? '$recurrenceLabel · ' : ''}$deadlineText  $timeText · $subtitle',
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: mutedColor,
+                        height: 1.25,
                       ),
+                    ),
+                  ],
                 ),
               ),
-            IconButton(
-              icon: const Icon(Icons.delete_outline),
-              tooltip: tr(language, '删除', 'Delete'),
-              onPressed: onDelete,
-            ),
-          ],
+              const SizedBox(width: 8),
+              _TaskTrailing(
+                task: task,
+                effectiveDaysLeft: effectiveDaysLeft,
+                urgency: urgency,
+                baseColor: baseColor,
+                language: language,
+                onDelete: onDelete,
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -159,6 +172,66 @@ class TaskTile extends StatelessWidget {
     return const _TaskUrgencyStyle(
       accent: Color(0xFF314A64),
       background: Colors.transparent,
+    );
+  }
+}
+
+class _TaskTrailing extends StatelessWidget {
+  const _TaskTrailing({
+    required this.task,
+    required this.effectiveDaysLeft,
+    required this.urgency,
+    required this.baseColor,
+    required this.language,
+    required this.onDelete,
+  });
+
+  final Task task;
+  final int effectiveDaysLeft;
+  final _TaskUrgencyStyle urgency;
+  final Color baseColor;
+  final AppLanguage language;
+  final VoidCallback onDelete;
+
+  @override
+  Widget build(BuildContext context) {
+    return ConstrainedBox(
+      constraints: const BoxConstraints(minWidth: 76, maxWidth: 96),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (urgency.showWarningIcon)
+            Icon(Icons.schedule_rounded, color: urgency.accent.withOpacity(.85), size: 18)
+          else if (task.completed && !task.isRecurring)
+            const Icon(Icons.check_circle, color: Colors.green, size: 18)
+          else
+            Flexible(
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF1F4F8),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Text(
+                  language == AppLanguage.zh ? '$effectiveDaysLeft 天' : '$effectiveDaysLeft d',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                        color: baseColor,
+                        fontWeight: FontWeight.w700,
+                      ),
+                ),
+              ),
+            ),
+          IconButton(
+            icon: const Icon(Icons.delete_outline),
+            tooltip: tr(language, '删除', 'Delete'),
+            onPressed: onDelete,
+            visualDensity: VisualDensity.compact,
+          ),
+        ],
+      ),
     );
   }
 }

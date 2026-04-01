@@ -22,6 +22,8 @@ enum BackgroundImageAnchor {
   bottomRight,
 }
 
+enum CloseAction { minimizeToTray, exitApp }
+
 extension AppLanguageX on AppLanguage {
   String get localeCode => this == AppLanguage.zh ? 'zh_CN' : 'en_US';
   String get displayName => this == AppLanguage.zh ? '中文' : 'English';
@@ -167,6 +169,12 @@ extension BackgroundImageAnchorX on BackgroundImageAnchor {
   }
 }
 
+extension CloseActionX on CloseAction {
+  String get storageKey => this == CloseAction.exitApp ? 'exit' : 'tray';
+
+  static CloseAction parse(String? raw) => raw == 'exit' ? CloseAction.exitApp : CloseAction.minimizeToTray;
+}
+
 class AppSettings {
   const AppSettings({
     required this.reminderThresholdDays,
@@ -193,6 +201,9 @@ class AppSettings {
     required this.language,
     required this.fontFamily,
     required this.customFontFamily,
+    required this.showCloseConfirmDialog,
+    required this.closeAction,
+    required this.headerTitleMaxWidth,
   });
 
   final int reminderThresholdDays;
@@ -219,6 +230,9 @@ class AppSettings {
   final AppLanguage language;
   final AppFontFamily fontFamily;
   final String? customFontFamily;
+  final bool showCloseConfirmDialog;
+  final CloseAction closeAction;
+  final double headerTitleMaxWidth;
 
   factory AppSettings.defaults() {
     return AppSettings(
@@ -246,6 +260,9 @@ class AppSettings {
       language: AppLanguage.zh,
       fontFamily: AppFontFamily.notoSans,
       customFontFamily: null,
+      showCloseConfirmDialog: true,
+      closeAction: CloseAction.minimizeToTray,
+      headerTitleMaxWidth: 220,
     );
   }
 
@@ -274,6 +291,9 @@ class AppSettings {
     AppLanguage? language,
     AppFontFamily? fontFamily,
     Object? customFontFamily = _unsetValue,
+    bool? showCloseConfirmDialog,
+    CloseAction? closeAction,
+    double? headerTitleMaxWidth,
   }) {
     return AppSettings(
       reminderThresholdDays: reminderThresholdDays ?? this.reminderThresholdDays,
@@ -300,37 +320,63 @@ class AppSettings {
       language: language ?? this.language,
       fontFamily: fontFamily ?? this.fontFamily,
       customFontFamily: identical(customFontFamily, _unsetValue) ? this.customFontFamily : customFontFamily as String?,
+      showCloseConfirmDialog: showCloseConfirmDialog ?? this.showCloseConfirmDialog,
+      closeAction: closeAction ?? this.closeAction,
+      headerTitleMaxWidth: headerTitleMaxWidth ?? this.headerTitleMaxWidth,
     );
   }
 
   factory AppSettings.fromJson(Map<String, dynamic> json) {
     final imagePath = (json['backgroundImagePath'] as String?)?.trim();
     final parsedAnchor = BackgroundImageAnchorX.parse(json['backgroundImageAnchor'] as String?);
+    final reminderThresholdDays = ((json['reminderThresholdDays'] as int?) ?? 3).clamp(1, 14) as int;
+    final surfaceOpacity = (((json['surfaceOpacity'] as num?)?.toDouble()) ?? .92).clamp(.35, 1.0).toDouble();
+    final backgroundImageFocusX = ((((json['backgroundImageFocusX'] as num?)?.toDouble()) ?? parsedAnchor.alignment.x)
+            .clamp(-1.0, 1.0))
+        .toDouble();
+    final backgroundImageFocusY = ((((json['backgroundImageFocusY'] as num?)?.toDouble()) ?? parsedAnchor.alignment.y)
+            .clamp(-1.0, 1.0))
+        .toDouble();
+    final backgroundImageOpacity = (((json['backgroundImageOpacity'] as num?)?.toDouble()) ?? .78)
+        .clamp(.05, 1.0)
+        .toDouble();
+    final backgroundImageOverlayOpacity = (((json['backgroundImageOverlayOpacity'] as num?)?.toDouble()) ?? .12)
+        .clamp(.0, .45)
+        .toDouble();
+    final urgencyOverlayOpacity = (((json['urgencyOverlayOpacity'] as num?)?.toDouble()) ?? .10)
+        .clamp(.0, .35)
+        .toDouble();
+    final weeklyReminderDays = ((json['weeklyReminderDays'] as int?) ?? 2).clamp(1, 7) as int;
+    final monthlyReminderDays = ((json['monthlyReminderDays'] as int?) ?? 3).clamp(1, 7) as int;
+    final headerTitleMaxWidth = (((json['headerTitleMaxWidth'] as num?)?.toDouble()) ?? 220).clamp(140.0, 320.0).toDouble();
     return AppSettings(
-      reminderThresholdDays: json['reminderThresholdDays'] as int? ?? 3,
+      reminderThresholdDays: reminderThresholdDays,
       autoLaunch: json['autoLaunch'] as bool? ?? false,
       textColorValue: json['textColorValue'] as int? ?? Colors.black.value,
       backgroundColorValue: json['backgroundColorValue'] as int? ?? const Color(0xFFF5F5F7).value,
       panelColorValue: json['panelColorValue'] as int? ?? Colors.white.value,
-      surfaceOpacity: (json['surfaceOpacity'] as num?)?.toDouble() ?? .92,
+      surfaceOpacity: surfaceOpacity,
       backgroundMode: BackgroundModeX.parse(json['backgroundMode'] as String?),
       backgroundImagePath: (imagePath == null || imagePath.isEmpty) ? null : imagePath,
       backgroundImageFit: BackgroundImageFitX.parse(json['backgroundImageFit'] as String?),
       backgroundImageAnchor: parsedAnchor,
-      backgroundImageFocusX: (json['backgroundImageFocusX'] as num?)?.toDouble() ?? parsedAnchor.alignment.x,
-      backgroundImageFocusY: (json['backgroundImageFocusY'] as num?)?.toDouble() ?? parsedAnchor.alignment.y,
-      backgroundImageOpacity: (json['backgroundImageOpacity'] as num?)?.toDouble() ?? .78,
-      backgroundImageOverlayOpacity: (json['backgroundImageOverlayOpacity'] as num?)?.toDouble() ?? .12,
+      backgroundImageFocusX: backgroundImageFocusX,
+      backgroundImageFocusY: backgroundImageFocusY,
+      backgroundImageOpacity: backgroundImageOpacity,
+      backgroundImageOverlayOpacity: backgroundImageOverlayOpacity,
       backgroundImageOverlayColorValue: json['backgroundImageOverlayColorValue'] as int? ?? Colors.black.value,
       urgencyTintColorValue: json['urgencyTintColorValue'] as int? ?? const Color(0xFFC98A72).value,
-      urgencyOverlayOpacity: (json['urgencyOverlayOpacity'] as num?)?.toDouble() ?? .10,
-      slogan: json['slogan'] as String? ?? '专注每一天',
+      urgencyOverlayOpacity: urgencyOverlayOpacity,
+      slogan: (json['slogan'] as String?)?.trim().isNotEmpty == true ? (json['slogan'] as String).trim() : '专注每一天',
       showRecurringPanel: json['showRecurringPanel'] as bool? ?? true,
-      weeklyReminderDays: json['weeklyReminderDays'] as int? ?? 2,
-      monthlyReminderDays: json['monthlyReminderDays'] as int? ?? 3,
+      weeklyReminderDays: weeklyReminderDays,
+      monthlyReminderDays: monthlyReminderDays,
       language: AppLanguageX.parse(json['language'] as String?),
       fontFamily: AppFontFamilyX.parse(json['fontFamily'] as String?),
       customFontFamily: json['customFontFamily'] as String?,
+      showCloseConfirmDialog: json['showCloseConfirmDialog'] as bool? ?? true,
+      closeAction: CloseActionX.parse(json['closeAction'] as String?),
+      headerTitleMaxWidth: headerTitleMaxWidth,
     );
   }
 
@@ -360,6 +406,9 @@ class AppSettings {
       'language': language.storageKey,
       'fontFamily': fontFamily.storageKey,
       'customFontFamily': customFontFamily,
+      'showCloseConfirmDialog': showCloseConfirmDialog,
+      'closeAction': closeAction.storageKey,
+      'headerTitleMaxWidth': headerTitleMaxWidth,
     };
   }
 
