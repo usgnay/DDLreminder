@@ -1,6 +1,8 @@
 param(
   [switch]$SkipBuild,
   [switch]$AllowDirty,
+  [switch]$AutoCommitDirty,
+  [string]$CommitMessage = '',
   [string]$ReleaseNotes = ''
 )
 
@@ -51,6 +53,41 @@ function Ensure-CleanWorktree {
   if (-not [string]::IsNullOrWhiteSpace(($status | Out-String))) {
     throw 'Worktree is dirty. Commit or stash changes first, or rerun with -AllowDirty.'
   }
+}
+
+function Save-DirtyWorktree {
+  param(
+    [string]$Root,
+    [string]$Version,
+    [string]$Message
+  )
+
+  $status = & $git -C $Root status --porcelain
+  if ($LASTEXITCODE -ne 0) {
+    throw 'Failed to read git status.'
+  }
+  if ([string]::IsNullOrWhiteSpace(($status | Out-String))) {
+    return $false
+  }
+
+  $commitMessage = $Message
+  if ([string]::IsNullOrWhiteSpace($commitMessage)) {
+    $commitMessage = "chore: prepare release v$Version"
+  }
+
+  Write-Log 'Worktree is dirty, staging tracked changes'
+  & $git -C $Root add -A
+  if ($LASTEXITCODE -ne 0) {
+    throw 'Failed to stage dirty worktree.'
+  }
+
+  Write-Log "Creating commit: $commitMessage"
+  & $git -C $Root commit -m $commitMessage
+  if ($LASTEXITCODE -ne 0) {
+    throw 'Failed to commit dirty worktree.'
+  }
+
+  return $true
 }
 
 function Ensure-TagPushed {
@@ -210,7 +247,11 @@ $tag = "v$version"
 Write-Log "Version $version"
 Write-Log "Repository $(Get-RemoteUrl -Root $repoRoot)"
 
-Ensure-CleanWorktree -Root $repoRoot -AllowDirtyWorktree:$AllowDirty
+if ($AutoCommitDirty) {
+  Save-DirtyWorktree -Root $repoRoot -Version $version -Message $CommitMessage | Out-Null
+} else {
+  Ensure-CleanWorktree -Root $repoRoot -AllowDirtyWorktree:$AllowDirty
+}
 
 if (-not $SkipBuild) {
   Write-Log 'Running release build script'

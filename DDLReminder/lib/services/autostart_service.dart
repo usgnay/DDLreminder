@@ -2,6 +2,9 @@ import 'dart:io';
 
 class AutostartService {
   static const _appName = 'DDLReminder';
+  static const _windowsLauncherDirName = 'DDLReminder';
+  static const _windowsStartupScriptName = 'DDLReminder Startup.cmd';
+  static const _windowsTargetFileName = 'autostart_target.txt';
 
   Future<void> apply({required bool enable}) async {
     final executable = Platform.resolvedExecutable;
@@ -15,15 +18,53 @@ class AutostartService {
   }
 
   Future<void> _handleWindows(bool enable, String executable) async {
-    const key = r'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run';
-    final args = enable
-      ? ['add', key, '/v', _appName, '/t', 'REG_SZ', '/d', executable, '/f']
-        : ['delete', key, '/v', _appName, '/f'];
+    final appData = Platform.environment['APPDATA'];
+    if (appData == null || appData.isEmpty) {
+      return;
+    }
+
+    final startupDir = Directory('$appData\\Microsoft\\Windows\\Start Menu\\Programs\\Startup');
+    final launcherDir = Directory('$appData\\$_windowsLauncherDirName');
+    final startupScript = File('${startupDir.path}\\$_windowsStartupScriptName');
+    final targetFile = File('${launcherDir.path}\\$_windowsTargetFileName');
+
     try {
-      await Process.run('reg', args);
+      if (!enable) {
+        if (await startupScript.exists()) {
+          await startupScript.delete();
+        }
+        if (await targetFile.exists()) {
+          await targetFile.delete();
+        }
+        return;
+      }
+
+      if (!await startupDir.exists()) {
+        await startupDir.create(recursive: true);
+      }
+      if (!await launcherDir.exists()) {
+        await launcherDir.create(recursive: true);
+      }
+
+      await targetFile.writeAsString(executable, flush: true);
+      await startupScript.writeAsString(_buildWindowsStartupScript(targetFile.path), flush: true);
     } catch (_) {
       // Ignore failures; app will still honor stored preference.
     }
+  }
+
+  String _buildWindowsStartupScript(String targetFilePath) {
+    final escapedTargetFilePath = targetFilePath.replaceAll('%', '%%');
+    return '''
+@echo off
+setlocal
+set "TARGET_FILE=$escapedTargetFilePath"
+if not exist "%TARGET_FILE%" exit /b 0
+set /p TARGET=<"%TARGET_FILE%"
+if not defined TARGET exit /b 0
+if not exist "%TARGET%" exit /b 0
+start "" "%TARGET%"
+''';
   }
 
   Future<void> _handleMac(bool enable, String executable) async {
