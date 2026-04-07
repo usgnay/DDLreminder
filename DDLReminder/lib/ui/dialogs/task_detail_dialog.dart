@@ -31,13 +31,17 @@ class _EditableTaskDialogState extends State<_EditableTaskDialog> {
   late final TextEditingController _descriptionController;
   final _formKey = GlobalKey<FormState>();
   late DateTime _deadline;
+  late bool _hasSpecificTime;
 
   @override
   void initState() {
     super.initState();
     _titleController = TextEditingController(text: widget.task.title);
-    _descriptionController = TextEditingController(text: widget.task.description);
+    _descriptionController = TextEditingController(
+      text: widget.task.description,
+    );
     _deadline = widget.task.oneOffDeadline ?? DateTime.now();
+    _hasSpecificTime = widget.task.hasSpecificTime;
   }
 
   @override
@@ -51,6 +55,7 @@ class _EditableTaskDialogState extends State<_EditableTaskDialog> {
   Widget build(BuildContext context) {
     final lang = widget.language;
     final formatter = DateFormat('yyyy-MM-dd', lang.localeCode);
+    final timeFormatter = DateFormat('HH:mm', lang.localeCode);
     final nextDue = widget.task.nextDueDate(DateTime.now());
 
     return AlertDialog(
@@ -65,7 +70,7 @@ class _EditableTaskDialogState extends State<_EditableTaskDialog> {
               TextFormField(
                 controller: _titleController,
                 decoration: InputDecoration(
-                  labelText: tr(lang, '任务简称', 'Task title'),
+                  labelText: tr(lang, '任务标题', 'Task title'),
                 ),
                 validator: (value) => (value == null || value.trim().isEmpty)
                     ? tr(lang, '请输入任务名称', 'Please enter a task name')
@@ -90,8 +95,8 @@ class _EditableTaskDialogState extends State<_EditableTaskDialog> {
                 Text(
                   tr(
                     lang,
-                    '下次提醒：${formatter.format(nextDue)}',
-                    'Next reminder: ${formatter.format(nextDue)}',
+                    '下次截止：${formatter.format(nextDue)} ${DateFormat('EEE', lang.localeCode).format(nextDue)}',
+                    'Next due: ${formatter.format(nextDue)} ${DateFormat('EEE', lang.localeCode).format(nextDue)}',
                   ),
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
@@ -111,6 +116,43 @@ class _EditableTaskDialogState extends State<_EditableTaskDialog> {
                     ),
                   ],
                 ),
+                SwitchListTile.adaptive(
+                  contentPadding: EdgeInsets.zero,
+                  value: _hasSpecificTime,
+                  onChanged: (value) async {
+                    setState(() {
+                      _hasSpecificTime = value;
+                      if (!value) {
+                        _deadline = DateTime(
+                          _deadline.year,
+                          _deadline.month,
+                          _deadline.day,
+                        );
+                      }
+                    });
+                    if (value) {
+                      await _pickTime();
+                    }
+                  },
+                  title: Text(tr(lang, '具体到时间', 'Specific time')),
+                  subtitle: Text(
+                    tr(
+                      lang,
+                      '开启后在任务标题下方显示具体时间',
+                      'Show the exact due time under the task title',
+                    ),
+                  ),
+                ),
+                if (_hasSpecificTime)
+                  Row(
+                    children: [
+                      Expanded(child: Text(timeFormatter.format(_deadline))),
+                      TextButton(
+                        onPressed: _pickTime,
+                        child: Text(tr(lang, '选择时间', 'Pick time')),
+                      ),
+                    ],
+                  ),
               ],
             ],
           ),
@@ -135,9 +177,37 @@ class _EditableTaskDialogState extends State<_EditableTaskDialog> {
       lastDate: now.add(const Duration(days: 365 * 5)),
       locale: Locale(widget.language == AppLanguage.zh ? 'zh' : 'en'),
     );
-    if (picked != null) {
-      setState(() => _deadline = DateTime(picked.year, picked.month, picked.day));
+    if (picked == null) {
+      return;
     }
+    setState(() {
+      _deadline = DateTime(
+        picked.year,
+        picked.month,
+        picked.day,
+        _hasSpecificTime ? _deadline.hour : 0,
+        _hasSpecificTime ? _deadline.minute : 0,
+      );
+    });
+  }
+
+  Future<void> _pickTime() async {
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay(hour: _deadline.hour, minute: _deadline.minute),
+    );
+    if (picked == null) {
+      return;
+    }
+    setState(() {
+      _deadline = DateTime(
+        _deadline.year,
+        _deadline.month,
+        _deadline.day,
+        picked.hour,
+        picked.minute,
+      );
+    });
   }
 
   void _save() {
@@ -147,7 +217,16 @@ class _EditableTaskDialogState extends State<_EditableTaskDialog> {
     final updatedTask = widget.task.copyWith(
       title: _titleController.text.trim(),
       description: _descriptionController.text.trim(),
-      deadline: widget.task.isRecurring ? null : DateTime(_deadline.year, _deadline.month, _deadline.day),
+      deadline: widget.task.isRecurring
+          ? null
+          : DateTime(
+              _deadline.year,
+              _deadline.month,
+              _deadline.day,
+              _hasSpecificTime ? _deadline.hour : 0,
+              _hasSpecificTime ? _deadline.minute : 0,
+            ),
+      hasSpecificTime: widget.task.isRecurring ? false : _hasSpecificTime,
       clearDeadline: widget.task.isRecurring,
     );
     Navigator.pop(context, updatedTask);
@@ -160,12 +239,12 @@ String _recurrenceLabel(Task task, AppLanguage language) {
       final names = weekdayLabels(language);
       final index = ((task.recurrenceValue ?? 1) - 1).clamp(0, 6);
       return language == AppLanguage.zh
-          ? '周期: 每周 ${names[index]}'
+          ? '周期：每周 ${names[index]}'
           : 'Repeats: every ${names[index]}';
     case RecurrenceType.monthly:
       final day = (task.recurrenceValue ?? 1).clamp(1, 31);
       return language == AppLanguage.zh
-          ? '周期: 每月 $day 日'
+          ? '周期：每月 $day 日'
           : 'Repeats: day $day each month';
     case RecurrenceType.none:
       return '';

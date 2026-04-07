@@ -31,7 +31,10 @@ class TaskTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final now = DateTime.now();
     final effectiveDaysLeft = task.isRecurring
-        ? task.nextDueDate(now).difference(DateTime(now.year, now.month, now.day)).inDays
+        ? task
+              .nextDueDate(now)
+              .difference(DateTime(now.year, now.month, now.day))
+              .inDays
         : daysLeft;
     final urgency = _urgencyFor(
       effectiveDaysLeft,
@@ -40,15 +43,33 @@ class TaskTile extends StatelessWidget {
       urgencyOverlayOpacity,
     );
     final subtitle = _buildSubtitle(effectiveDaysLeft);
-    final dateFormatter = DateFormat('yyyy-MM-dd');
-    final timeFormatter = DateFormat('HH:mm');
-    final deadlineDate = task.isRecurring ? task.nextDueDate(now) : (task.oneOffDeadline ?? now);
-    final deadlineText = dateFormatter.format(deadlineDate);
-    final timeText = timeFormatter.format(deadlineDate);
+    final deadlineDate = task.isRecurring
+        ? task.nextDueDate(now)
+        : (task.oneOffDeadline ?? now);
+    final dateText = DateFormat(
+      'yyyy-MM-dd',
+      language.localeCode,
+    ).format(deadlineDate);
+    final weekdayText = DateFormat(
+      'EEE',
+      language.localeCode,
+    ).format(deadlineDate);
+    final timeText = task.hasSpecificTime
+        ? DateFormat('HH:mm', language.localeCode).format(deadlineDate)
+        : null;
     final recurrenceLabel = task.isRecurring ? _recurrenceText(task) : null;
-    final baseColor = Theme.of(context).textTheme.bodyMedium?.color ?? Colors.black;
+    final metaSegments = <String>[
+      if (recurrenceLabel != null) recurrenceLabel,
+      '$dateText $weekdayText',
+      if (timeText != null) timeText,
+      subtitle,
+    ];
+    final baseColor =
+        Theme.of(context).textTheme.bodyMedium?.color ?? Colors.black;
     final mutedColor = baseColor.withOpacity(.62);
-    final titleColor = task.completed && !task.isRecurring ? mutedColor : baseColor;
+    final titleColor = task.completed && !task.isRecurring
+        ? mutedColor
+        : baseColor;
     final textStyle = task.completed && !task.isRecurring
         ? Theme.of(context).textTheme.bodyMedium?.copyWith(
             decoration: TextDecoration.lineThrough,
@@ -56,7 +77,9 @@ class TaskTile extends StatelessWidget {
           )
         : Theme.of(context).textTheme.bodyMedium?.copyWith(
             color: titleColor,
-            fontWeight: urgency.highlightTitle ? FontWeight.w600 : FontWeight.w500,
+            fontWeight: urgency.highlightTitle
+                ? FontWeight.w600
+                : FontWeight.w500,
           );
 
     return Container(
@@ -73,10 +96,7 @@ class TaskTile extends StatelessWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Checkbox(
-                value: task.completed,
-                onChanged: (_) => onToggle(),
-              ),
+              Checkbox(value: task.completed, onChanged: (_) => onToggle()),
               const SizedBox(width: 4),
               Expanded(
                 child: Column(
@@ -91,13 +111,10 @@ class TaskTile extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      '${recurrenceLabel != null ? '$recurrenceLabel · ' : ''}$deadlineText  $timeText · $subtitle',
+                      metaSegments.join(' · '),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: mutedColor,
-                        height: 1.25,
-                      ),
+                      style: TextStyle(color: mutedColor, height: 1.25),
                     ),
                   ],
                 ),
@@ -126,7 +143,11 @@ class TaskTile extends StatelessWidget {
       return tr(language, '已完成', 'Completed');
     }
     if (daysLeft < 0) {
-      return tr(language, '已逾期 ${daysLeft.abs()} 天', 'Overdue ${daysLeft.abs()} day(s)');
+      return tr(
+        language,
+        '已逾期 ${daysLeft.abs()} 天',
+        'Overdue ${daysLeft.abs()} day(s)',
+      );
     }
     return tr(language, '剩余 $daysLeft 天', '$daysLeft day(s) left');
   }
@@ -139,7 +160,9 @@ class TaskTile extends StatelessWidget {
       case RecurrenceType.weekly:
         final labels = weekdayLabels(language);
         final index = ((task.recurrenceValue ?? 1) - 1).clamp(0, 6);
-        return language == AppLanguage.zh ? '每周 ${labels[index]}' : 'Every ${labels[index]}';
+        return language == AppLanguage.zh
+            ? '每周 ${labels[index]}'
+            : 'Every ${labels[index]}';
       case RecurrenceType.monthly:
         final day = (task.recurrenceValue ?? 1).clamp(1, 31);
         return language == AppLanguage.zh ? '每月 $day 日' : 'Day $day each month';
@@ -148,7 +171,12 @@ class TaskTile extends StatelessWidget {
     }
   }
 
-  _TaskUrgencyStyle _urgencyFor(int daysLeft, bool completed, Color tintColor, double overlayOpacity) {
+  _TaskUrgencyStyle _urgencyFor(
+    int daysLeft,
+    bool completed,
+    Color tintColor,
+    double overlayOpacity,
+  ) {
     if (completed) {
       return const _TaskUrgencyStyle(
         accent: Color(0xFF5F6C7B),
@@ -166,7 +194,9 @@ class TaskTile extends StatelessWidget {
     if (daysLeft <= 3) {
       return _TaskUrgencyStyle(
         accent: tintColor.withOpacity(.82),
-        background: tintColor.withOpacity((overlayOpacity * .78).clamp(.03, .20)),
+        background: tintColor.withOpacity(
+          (overlayOpacity * .78).clamp(.03, .20),
+        ),
       );
     }
     return const _TaskUrgencyStyle(
@@ -201,7 +231,11 @@ class _TaskTrailing extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           if (urgency.showWarningIcon)
-            Icon(Icons.schedule_rounded, color: urgency.accent.withOpacity(.85), size: 18)
+            Icon(
+              Icons.schedule_rounded,
+              color: urgency.accent.withOpacity(.85),
+              size: 18,
+            )
           else if (task.completed && !task.isRecurring)
             const Icon(Icons.check_circle, color: Colors.green, size: 18)
           else
@@ -213,14 +247,16 @@ class _TaskTrailing extends StatelessWidget {
                   borderRadius: BorderRadius.circular(999),
                 ),
                 child: Text(
-                  language == AppLanguage.zh ? '$effectiveDaysLeft 天' : '$effectiveDaysLeft d',
+                  language == AppLanguage.zh
+                      ? '$effectiveDaysLeft 天'
+                      : '$effectiveDaysLeft d',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   textAlign: TextAlign.center,
                   style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                        color: baseColor,
-                        fontWeight: FontWeight.w700,
-                      ),
+                    color: baseColor,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ),
             ),

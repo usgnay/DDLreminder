@@ -10,6 +10,7 @@ class Task {
   final String title;
   final String description;
   final DateTime? deadline;
+  final bool hasSpecificTime;
   final bool completed;
   final RecurrenceType recurrenceType;
   final int? recurrenceValue;
@@ -20,6 +21,7 @@ class Task {
     required this.title,
     required this.description,
     required this.deadline,
+    this.hasSpecificTime = false,
     required this.completed,
     this.recurrenceType = RecurrenceType.none,
     this.recurrenceValue,
@@ -31,13 +33,15 @@ class Task {
     required String title,
     required String description,
     required DateTime deadline,
+    bool hasSpecificTime = false,
     required bool completed,
   }) {
     return Task(
       id: id,
       title: title,
       description: description,
-      deadline: _dateOnly(deadline),
+      deadline: hasSpecificTime ? _withTime(deadline) : _dateOnly(deadline),
+      hasSpecificTime: hasSpecificTime,
       completed: completed,
     );
   }
@@ -56,6 +60,7 @@ class Task {
       title: title,
       description: description,
       deadline: null,
+      hasSpecificTime: false,
       completed: completed,
       recurrenceType: recurrenceType,
       recurrenceValue: recurrenceValue,
@@ -69,6 +74,7 @@ class Task {
     String? description,
     DateTime? deadline,
     bool clearDeadline = false,
+    bool? hasSpecificTime,
     bool? completed,
     RecurrenceType? recurrenceType,
     int? recurrenceValue,
@@ -79,23 +85,35 @@ class Task {
       title: title ?? this.title,
       description: description ?? this.description,
       deadline: clearDeadline ? null : (deadline ?? this.deadline),
+      hasSpecificTime: hasSpecificTime ?? this.hasSpecificTime,
       completed: completed ?? this.completed,
       recurrenceType: recurrenceType ?? this.recurrenceType,
       recurrenceValue: recurrenceValue ?? this.recurrenceValue,
-      recurrenceReminderDays: recurrenceReminderDays ?? this.recurrenceReminderDays,
+      recurrenceReminderDays:
+          recurrenceReminderDays ?? this.recurrenceReminderDays,
     );
   }
 
   factory Task.fromJson(Map<String, dynamic> json) {
     final recurrenceType = _parseRecurrence(json['recurrenceType'] as String?);
+    final hasSpecificTime = json['hasSpecificTime'] as bool? ?? false;
     final parsedDeadline = DateTime.tryParse(json['deadline'] as String? ?? '');
-    final normalizedDeadline = parsedDeadline == null ? null : _dateOnly(parsedDeadline);
+    final normalizedDeadline = parsedDeadline == null
+        ? null
+        : (hasSpecificTime
+              ? _withTime(parsedDeadline)
+              : _dateOnly(parsedDeadline));
 
     return Task(
       id: json['id'] as String? ?? _makeId(json['title'] as String? ?? ''),
-      title: json['title'] as String? ?? '未命名任务',
+      title: json['title'] as String? ?? 'Untitled task',
       description: json['description'] as String? ?? '',
-      deadline: recurrenceType == RecurrenceType.none ? normalizedDeadline ?? _dateOnly(DateTime.now()) : null,
+      deadline: recurrenceType == RecurrenceType.none
+          ? normalizedDeadline ?? _dateOnly(DateTime.now())
+          : null,
+      hasSpecificTime: recurrenceType == RecurrenceType.none
+          ? hasSpecificTime
+          : false,
       completed: json['completed'] as bool? ?? false,
       recurrenceType: recurrenceType,
       recurrenceValue: json['recurrenceValue'] as int?,
@@ -109,6 +127,7 @@ class Task {
       'title': title,
       'description': description,
       'deadline': deadline?.toIso8601String(),
+      'hasSpecificTime': hasSpecificTime,
       'completed': completed,
       'recurrenceType': recurrenceType.name,
       'recurrenceValue': recurrenceValue,
@@ -121,7 +140,7 @@ class Task {
   DateTime? get oneOffDeadline => isRecurring ? null : deadline;
 
   int daysLeft(DateTime today) {
-    final dateOnlyDeadline = nextDueDate(today);
+    final dateOnlyDeadline = _dateOnly(nextDueDate(today));
     final dateOnlyToday = _dateOnly(today);
     return dateOnlyDeadline.difference(dateOnlyToday).inDays;
   }
@@ -136,13 +155,19 @@ class Task {
       return deadline ?? _dateOnly(reference);
     }
     final sanitizedToday = _dateOnly(reference);
-    return projectNextOccurrence(recurrenceType, recurrenceValue, sanitizedToday);
+    return projectNextOccurrence(
+      recurrenceType,
+      recurrenceValue,
+      sanitizedToday,
+    );
   }
 
   static String freshId([String seed = '']) {
     final stamp = DateTime.now().microsecondsSinceEpoch;
     final randomBits = _random.nextInt(1 << 32);
-    final seedHash = seed.trim().isEmpty ? '' : '-${base64Url.encode(utf8.encode(seed.trim())).replaceAll('=', '')}';
+    final seedHash = seed.trim().isEmpty
+        ? ''
+        : '-${base64Url.encode(utf8.encode(seed.trim())).replaceAll('=', '')}';
     return '$stamp-${randomBits.toRadixString(16).padLeft(8, '0')}$seedHash';
   }
 
@@ -159,11 +184,18 @@ class Task {
     }
   }
 
-  static DateTime projectNextOccurrence(RecurrenceType type, int? recurrenceValue, DateTime from) {
+  static DateTime projectNextOccurrence(
+    RecurrenceType type,
+    int? recurrenceValue,
+    DateTime from,
+  ) {
     final sanitizedFrom = _dateOnly(from);
     switch (type) {
       case RecurrenceType.weekly:
-        final targetWeekday = (recurrenceValue ?? sanitizedFrom.weekday).clamp(1, 7);
+        final targetWeekday = (recurrenceValue ?? sanitizedFrom.weekday).clamp(
+          1,
+          7,
+        );
         var date = sanitizedFrom;
         while (date.weekday != targetWeekday) {
           date = date.add(const Duration(days: 1));
@@ -188,10 +220,16 @@ class Task {
     }
   }
 
-  static DateTime _dateOnly(DateTime value) => DateTime(value.year, value.month, value.day);
+  static DateTime _dateOnly(DateTime value) =>
+      DateTime(value.year, value.month, value.day);
+
+  static DateTime _withTime(DateTime value) =>
+      DateTime(value.year, value.month, value.day, value.hour, value.minute);
 
   static int _daysInMonth(int year, int month) {
-    final firstDayNextMonth = month == 12 ? DateTime(year + 1, 1, 1) : DateTime(year, month + 1, 1);
+    final firstDayNextMonth = month == 12
+        ? DateTime(year + 1, 1, 1)
+        : DateTime(year, month + 1, 1);
     return firstDayNextMonth.subtract(const Duration(days: 1)).day;
   }
 }

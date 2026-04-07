@@ -53,9 +53,13 @@ class _RecurringTaskListState extends State<RecurringTaskList> {
         }
         return a.title.compareTo(b.title);
       });
-    final visibleTasks = _expanded ? sortedTasks : sortedTasks.take(_collapsedCount).toList(growable: false);
+    final visibleTasks = _expanded
+        ? sortedTasks
+        : sortedTasks.take(_collapsedCount).toList(growable: false);
     final hasMore = sortedTasks.length > _collapsedCount;
-    final titleStyle = Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700);
+    final titleStyle = Theme.of(
+      context,
+    ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700);
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -77,11 +81,23 @@ class _RecurringTaskListState extends State<RecurringTaskList> {
               if (hasMore)
                 TextButton.icon(
                   onPressed: () => setState(() => _expanded = !_expanded),
-                  icon: Icon(_expanded ? Icons.expand_less : Icons.expand_more, size: 18),
-                  label: Text(tr(widget.language, _expanded ? '收起' : '展开', _expanded ? 'Less' : 'More')),
+                  icon: Icon(
+                    _expanded ? Icons.expand_less : Icons.expand_more,
+                    size: 18,
+                  ),
+                  label: Text(
+                    tr(
+                      widget.language,
+                      _expanded ? '收起' : '展开',
+                      _expanded ? 'Less' : 'More',
+                    ),
+                  ),
                   style: TextButton.styleFrom(
                     visualDensity: VisualDensity.compact,
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
                     minimumSize: const Size(0, 32),
                   ),
                 ),
@@ -131,7 +147,8 @@ class _RecurringRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final due = task.nextDueDate(today);
     final days = due.difference(today).inDays;
-    final dueText = DateFormat('MM-dd', language.localeCode).format(due);
+    final dueText =
+        '${DateFormat('MM-dd', language.localeCode).format(due)} ${DateFormat('EEE', language.localeCode).format(due)}';
     final urgency = _urgencyFor(days, urgencyTintColor, urgencyOverlayOpacity);
     final muted = Theme.of(context).textTheme.bodySmall?.color?.withOpacity(.7);
 
@@ -163,8 +180,10 @@ class _RecurringRow extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        fontWeight: urgency.highlightTitle ? FontWeight.w600 : FontWeight.w500,
-                      ),
+                    fontWeight: urgency.highlightTitle
+                        ? FontWeight.w600
+                        : FontWeight.w500,
+                  ),
                 ),
               ),
               const SizedBox(width: 8),
@@ -182,9 +201,9 @@ class _RecurringRow extends StatelessWidget {
               const SizedBox(width: 6),
               Text(
                 dueText,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: muted,
-                    ),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: muted),
               ),
               IconButton(
                 icon: const Icon(Icons.delete_outline, size: 18),
@@ -213,7 +232,11 @@ class _RecurringRow extends StatelessWidget {
     }
   }
 
-  _RecurringUrgencyStyle _urgencyFor(int daysLeft, Color tintColor, double overlayOpacity) {
+  _RecurringUrgencyStyle _urgencyFor(
+    int daysLeft,
+    Color tintColor,
+    double overlayOpacity,
+  ) {
     if (daysLeft <= 1) {
       return _RecurringUrgencyStyle(
         background: tintColor.withOpacity(overlayOpacity),
@@ -222,12 +245,12 @@ class _RecurringRow extends StatelessWidget {
     }
     if (daysLeft <= 3) {
       return _RecurringUrgencyStyle(
-        background: tintColor.withOpacity((overlayOpacity * .78).clamp(.03, .20)),
+        background: tintColor.withOpacity(
+          (overlayOpacity * .78).clamp(.03, .20),
+        ),
       );
     }
-    return const _RecurringUrgencyStyle(
-      background: Colors.transparent,
-    );
+    return const _RecurringUrgencyStyle(background: Colors.transparent);
   }
 }
 
@@ -253,9 +276,9 @@ class _CompactBadge extends StatelessWidget {
       child: Text(
         label,
         style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: foreground,
-              fontWeight: FontWeight.w600,
-            ),
+          color: foreground,
+          fontWeight: FontWeight.w600,
+        ),
       ),
     );
   }
