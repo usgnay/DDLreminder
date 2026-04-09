@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:package_info_plus/package_info_plus.dart';
@@ -37,10 +36,23 @@ class UpdateService {
   static const String owner = 'usgnay';
   static const String repo = 'DDLreminder';
   static const String releaseAssetName = 'DDLReminder-windows-release.zip';
+  static const String _latestReleaseUrl =
+      'https://github.com/$owner/$repo/releases/latest';
+  static const String _latestAssetUrl =
+      'https://github.com/$owner/$repo/releases/latest/download/$releaseAssetName';
 
   Future<String> currentVersion() async {
     final info = await PackageInfo.fromPlatform();
-    return info.version;
+    final version = info.version.trim();
+    final buildNumber = info.buildNumber.trim();
+
+    if (version.isEmpty) {
+      return buildNumber.isEmpty ? '0.0.0+0' : '0.0.0+$buildNumber';
+    }
+    if (buildNumber.isEmpty || version.contains('+')) {
+      return version;
+    }
+    return '$version+$buildNumber';
   }
 
   Future<UpdateCheckResult> checkForUpdate() async {
@@ -48,45 +60,66 @@ class UpdateService {
     final client = HttpClient()..userAgent = 'DDLreminder-Updater';
 
     try {
-      final request = await client.getUrl(
-        Uri.parse('https://api.github.com/repos/$owner/$repo/releases/latest'),
+      final latestReleaseResponse = await _sendWithoutRedirect(
+        client,
+        Uri.parse(_latestReleaseUrl),
       );
-      request.headers.set(HttpHeaders.acceptHeader, 'application/vnd.github+json');
-      final response = await request.close();
-      final body = await utf8.decoder.bind(response).join();
-
-      if (response.statusCode < 200 || response.statusCode >= 300) {
+      if (!_isRedirect(latestReleaseResponse.statusCode)) {
         return UpdateCheckResult(
           currentVersion: current,
           hasUpdate: false,
-          message: 'GitHub API returned ${response.statusCode}',
+          message:
+              'GitHub latest release returned ${latestReleaseResponse.statusCode}',
         );
       }
 
-      final json = jsonDecode(body) as Map<String, dynamic>;
-      final tag = (json['tag_name'] as String? ?? '').trim();
-      final version = _normalizeVersion(tag);
-      final htmlUrl = (json['html_url'] as String? ?? '').trim();
-      final assets = (json['assets'] as List<dynamic>? ?? const []);
-      final asset = assets.cast<Map<String, dynamic>?>().firstWhere(
-            (item) => item?['name'] == releaseAssetName,
-            orElse: () => null,
-          );
-
-      if (asset == null) {
+      final releaseLocation = latestReleaseResponse.headers.value(
+        HttpHeaders.locationHeader,
+      );
+      if (releaseLocation == null || releaseLocation.trim().isEmpty) {
         return UpdateCheckResult(
           currentVersion: current,
           hasUpdate: false,
-          message: 'Missing asset: $releaseAssetName',
+          message: 'GitHub latest release did not provide a redirect target',
+        );
+      }
+
+      final releaseUri = _resolveRedirect(
+        Uri.parse(_latestReleaseUrl),
+        releaseLocation,
+      );
+      final tag = releaseUri.pathSegments.isNotEmpty
+          ? releaseUri.pathSegments.last.trim()
+          : '';
+      final version = _normalizeVersion(tag);
+
+      if (tag.isEmpty || version.isEmpty) {
+        return UpdateCheckResult(
+          currentVersion: current,
+          hasUpdate: false,
+          message: 'Unable to resolve the latest release version from GitHub',
+        );
+      }
+
+      final assetResponse = await _sendWithoutRedirect(
+        client,
+        Uri.parse(_latestAssetUrl),
+      );
+      if (!_isSuccessOrRedirect(assetResponse.statusCode)) {
+        return UpdateCheckResult(
+          currentVersion: current,
+          hasUpdate: false,
+          message:
+              'Latest release asset is unavailable: $releaseAssetName (${assetResponse.statusCode})',
         );
       }
 
       final release = UpdateRelease(
         tag: tag,
         version: version,
-        assetName: asset['name'] as String,
-        assetDownloadUrl: asset['browser_download_url'] as String,
-        htmlUrl: htmlUrl,
+        assetName: releaseAssetName,
+        assetDownloadUrl: _latestAssetUrl,
+        htmlUrl: releaseUri.toString(),
       );
 
       final hasUpdate = _compareVersions(version, current) > 0;
@@ -105,6 +138,27 @@ class UpdateService {
       client.close(force: true);
     }
   }
+
+  Future<HttpClientResponse> _sendWithoutRedirect(
+    HttpClient client,
+    Uri uri,
+  ) async {
+    final request = await client.getUrl(uri);
+    request.followRedirects = false;
+    return request.close();
+  }
+
+  bool _isRedirect(int statusCode) =>
+      statusCode == HttpStatus.movedTemporarily ||
+      statusCode == HttpStatus.found ||
+      statusCode == HttpStatus.seeOther ||
+      statusCode == HttpStatus.temporaryRedirect ||
+      statusCode == HttpStatus.permanentRedirect;
+
+  bool _isSuccessOrRedirect(int statusCode) =>
+      (statusCode >= 200 && statusCode < 300) || _isRedirect(statusCode);
+
+  Uri _resolveRedirect(Uri base, String location) => base.resolve(location);
 
   Future<void> startUpdate(UpdateRelease release) async {
     if (!Platform.isWindows) {
@@ -135,7 +189,9 @@ class UpdateService {
         '-AppDir',
         appDir,
         '-ExeName',
-      exeFile.uri.pathSegments.isNotEmpty ? exeFile.uri.pathSegments.last : 'DDLReminder.exe',
+        exeFile.uri.pathSegments.isNotEmpty
+            ? exeFile.uri.pathSegments.last
+            : 'DDLReminder.exe',
         '-CurrentVersion',
         await currentVersion(),
       ],
@@ -173,7 +229,10 @@ class UpdateService {
     final split = normalized.split('+');
     final versionPart = split.first;
     final buildPart = split.length > 1 ? int.tryParse(split[1]) ?? 0 : 0;
-    final numbers = versionPart.split('.').map((item) => int.tryParse(item) ?? 0).toList(growable: true);
+    final numbers = versionPart
+        .split('.')
+        .map((item) => int.tryParse(item) ?? 0)
+        .toList(growable: true);
     while (numbers.length < 3) {
       numbers.add(0);
     }

@@ -4,7 +4,11 @@ param(
   [switch]$AutoCommitDirty,
   [string]$CommitMessage = '',
   [string]$ReleaseNotes = '',
-  [string]$Token = ''
+  [string]$Token = '',
+  [ValidateSet('build', 'patch', 'minor', 'major')]
+  [string]$Bump = '',
+  [string]$SetVersion = '',
+  [string]$TargetBranch = ''
 )
 
 Set-StrictMode -Version Latest
@@ -13,6 +17,7 @@ $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $PSScriptRoot
 $distZip = Join-Path $projectRoot 'dist\DDLReminder-windows-release.zip'
 $buildScript = Join-Path $projectRoot 'scripts\build_release.ps1'
+$bumpScript = Join-Path $projectRoot 'scripts\bump_version.ps1'
 $pubspecPath = Join-Path $projectRoot 'pubspec.yaml'
 $repoRoot = Split-Path -Parent $projectRoot
 $git = 'git'
@@ -24,13 +29,22 @@ function Write-Log {
   Write-Host "[publish] $Message"
 }
 
+function Assert-VersionFormat {
+  param([string]$Version)
+  if ($Version -notmatch '^\d+\.\d+\.\d+\+\d+$') {
+    throw "Invalid version format: $Version. Expected major.minor.patch+build"
+  }
+}
+
 function Get-VersionFromPubspec {
   param([string]$Path)
   $line = Get-Content -Path $Path | Where-Object { $_ -match '^version:' } | Select-Object -First 1
   if (-not $line) {
     throw 'Missing version in pubspec.yaml'
   }
-  return ($line -replace '^version:\s*', '').Trim()
+  $version = ($line -replace '^version:\s*', '').Trim()
+  Assert-VersionFormat -Version $version
+  return $version
 }
 
 function Get-RemoteUrl {
@@ -91,8 +105,60 @@ function Save-DirtyWorktree {
   return $true
 }
 
+function Test-RemoteTagExists {
+  param(
+    [string]$Root,
+    [string]$Tag
+  )
+
+  & $git -C $Root ls-remote --tags origin "refs/tags/$Tag" | Out-Null
+  if ($LASTEXITCODE -ne 0) {
+    throw "Failed to query remote tag $Tag"
+  }
+
+  $output = & $git -C $Root ls-remote --tags origin "refs/tags/$Tag"
+  return -not [string]::IsNullOrWhiteSpace(($output | Out-String))
+}
+
+function Get-LocalTagSha {
+  param(
+    [string]$Root,
+    [string]$Tag
+  )
+
+  $sha = & $git -C $Root rev-list -n 1 $Tag 2>$null
+  if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($sha)) {
+    return $null
+  }
+  return $sha.Trim()
+}
+
+function Get-RemoteTagSha {
+  param(
+    [string]$Root,
+    [string]$Tag
+  )
+
+  $output = & $git -C $Root ls-remote --tags origin "refs/tags/$Tag"
+  if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace(($output | Out-String))) {
+    return $null
+  }
+
+  $line = ($output | Select-Object -First 1).Trim()
+  if ([string]::IsNullOrWhiteSpace($line)) {
+    return $null
+  }
+
+  return ($line -split '\s+')[0].Trim()
+}
+
 function Ensure-TagPushed {
-  param([string]$Root, [string]$Tag)
+  param(
+    [string]$Root,
+    [string]$Tag,
+    [bool]$RemoteTagExists
+  )
+
   & $git -C $Root rev-parse -q --verify "refs/tags/$Tag" | Out-Null
   if ($LASTEXITCODE -ne 0) {
     Write-Log "Creating tag $Tag"
@@ -106,6 +172,19 @@ function Ensure-TagPushed {
   & $git -C $Root push origin HEAD
   if ($LASTEXITCODE -ne 0) {
     throw 'Failed to push current branch.'
+  }
+
+  if ($RemoteTagExists) {
+    $localSha = Get-LocalTagSha -Root $Root -Tag $Tag
+    $remoteSha = Get-RemoteTagSha -Root $Root -Tag $Tag
+    if ($null -eq $localSha -or $null -eq $remoteSha) {
+      throw "Unable to verify existing remote tag $Tag"
+    }
+    if ($localSha -ne $remoteSha) {
+      throw "Remote tag $Tag already exists but points to a different commit."
+    }
+    Write-Log "Tag $Tag already exists on remote; reusing it"
+    return
   }
 
   Write-Log "Pushing tag $Tag"
@@ -133,7 +212,6 @@ function Use-GitHubCli {
 
 function Publish-WithGh {
   param(
-    [string]$Root,
     [string]$Tag,
     [string]$ZipPath,
     [string]$Body
@@ -216,11 +294,24 @@ function Find-ReleaseByTag {
   }
 }
 
+function Resolve-TargetBranch {
+  param([string]$Root, [string]$ExplicitBranch)
+  if (-not [string]::IsNullOrWhiteSpace($ExplicitBranch)) {
+    return $ExplicitBranch.Trim()
+  }
+  $branch = & $git -C $Root branch --show-current
+  if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($branch)) {
+    throw 'Unable to determine current branch. Use -TargetBranch explicitly.'
+  }
+  return $branch.Trim()
+}
+
 function Publish-WithApi {
   param(
     [string]$Tag,
     [string]$ZipPath,
-    [string]$Body
+    [string]$Body,
+    [string]$TargetCommitish
   )
 
   Write-Log 'Publishing with GitHub API'
@@ -228,7 +319,7 @@ function Publish-WithApi {
   if ($null -eq $release) {
     $payload = @{
       tag_name = $Tag
-      target_commitish = 'main'
+      target_commitish = $TargetCommitish
       name = $Tag
       body = $Body
       draft = $false
@@ -238,6 +329,7 @@ function Publish-WithApi {
     $release = Invoke-GitHubApi -Method Post -Uri "https://api.github.com/repos/$repoOwner/$repoName/releases" -Body $payload
   } else {
     $payload = @{
+      target_commitish = $TargetCommitish
       name = $Tag
       body = $Body
       draft = $false
@@ -268,10 +360,34 @@ function Publish-WithApi {
   Invoke-RestMethod -Method Post -Uri $uploadUrl -Headers $headers -InFile $ZipPath -ContentType 'application/zip' | Out-Null
 }
 
+if (-not [string]::IsNullOrWhiteSpace($SetVersion) -and -not [string]::IsNullOrWhiteSpace($Bump)) {
+  throw 'Use either -Bump or -SetVersion, not both.'
+}
+
+if (-not [string]::IsNullOrWhiteSpace($Bump) -or -not [string]::IsNullOrWhiteSpace($SetVersion)) {
+  if (-not (Test-Path -LiteralPath $bumpScript)) {
+    throw "Version bump script not found: $bumpScript"
+  }
+
+  Write-Log 'Updating version before publish'
+  if (-not [string]::IsNullOrWhiteSpace($SetVersion)) {
+    & powershell -NoProfile -ExecutionPolicy Bypass -File $bumpScript -SetVersion $SetVersion
+  } else {
+    & powershell -NoProfile -ExecutionPolicy Bypass -File $bumpScript -Part $Bump
+  }
+  if ($LASTEXITCODE -ne 0) {
+    throw 'Version bump script failed.'
+  }
+}
+
 $version = Get-VersionFromPubspec -Path $pubspecPath
 $tag = "v$version"
+$targetCommitish = Resolve-TargetBranch -Root $repoRoot -ExplicitBranch $TargetBranch
+$remoteTagExists = Test-RemoteTagExists -Root $repoRoot -Tag $tag
 
 Write-Log "Version $version"
+Write-Log "Tag $tag"
+Write-Log "Target branch $targetCommitish"
 Write-Log "Repository $(Get-RemoteUrl -Root $repoRoot)"
 
 if ($AutoCommitDirty) {
@@ -280,22 +396,26 @@ if ($AutoCommitDirty) {
   Ensure-CleanWorktree -Root $repoRoot -AllowDirtyWorktree:$AllowDirty
 }
 
+if ($remoteTagExists) {
+  Write-Log "Remote tag already exists: $tag"
+}
+
 if (-not $SkipBuild) {
   Write-Log 'Running release build script'
-  powershell -ExecutionPolicy Bypass -File $buildScript
+  powershell -NoProfile -ExecutionPolicy Bypass -File $buildScript
 }
 
 if (-not (Test-Path -LiteralPath $distZip)) {
   throw "Release zip not found: $distZip"
 }
 
-Ensure-TagPushed -Root $repoRoot -Tag $tag
+Ensure-TagPushed -Root $repoRoot -Tag $tag -RemoteTagExists:$remoteTagExists
 
 $body = Get-ReleaseBody -Version $version -Notes $ReleaseNotes
 if (Use-GitHubCli) {
-  Publish-WithGh -Root $repoRoot -Tag $tag -ZipPath $distZip -Body $body
+  Publish-WithGh -Tag $tag -ZipPath $distZip -Body $body
 } else {
-  Publish-WithApi -Tag $tag -ZipPath $distZip -Body $body
+  Publish-WithApi -Tag $tag -ZipPath $distZip -Body $body -TargetCommitish $targetCommitish
 }
 
 Write-Log "Release published: $tag"

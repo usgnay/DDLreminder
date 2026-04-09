@@ -6,10 +6,39 @@
 - Format: `major.minor.patch+build`.
 - Example: `1.0.0+1`.
 
+## Version bump workflow
+
+Use the dedicated version script before publishing:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\bump_version.ps1 -Part build
+```
+
+Supported options:
+
+- `-Part build`
+- `-Part patch`
+- `-Part minor`
+- `-Part major`
+- `-SetVersion 1.2.0+5`
+
+Rules:
+
+- `build`: only increments the build number
+- `patch`: increments patch and resets build to `1`
+- `minor`: increments minor, resets patch to `0`, resets build to `1`
+- `major`: increments major, resets minor and patch to `0`, resets build to `1`
+
+The script prints:
+
+- old version
+- new version
+- suggested tag
+
 ## Release rules
 
 - Every public Windows release must use a Git tag that matches the app version.
-- Tag format: `v<pubspec version without spaces>`.
+- Tag format: `v<pubspec version>`.
 - Example: `v1.0.0+1`.
 
 ## Windows release asset
@@ -43,22 +72,31 @@ This script will:
 Preferred:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\publish_github_release.ps1
+powershell -ExecutionPolicy Bypass -File .\scripts\publish_github_release.ps1 -Bump build
 ```
 
 Or double-click:
 
 - `scripts\publish_github_release.bat`
 
-This script will:
+This script now supports:
 
-- verify version from `pubspec.yaml`
-- optionally run the build script
-- support entering a release message interactively
-- support entering a GitHub token interactively
-- create and push tag `v<version>`
-- create or update the GitHub Release
-- upload `dist\DDLReminder-windows-release.zip`
+- automatic version bumping through `-Bump`
+- explicit version setting through `-SetVersion`
+- version format validation
+- dynamic target branch detection
+- remote tag collision checks
+- optional tracked-change auto-commit
+
+Optional parameters:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\publish_github_release.ps1 -Bump patch -ReleaseNotes "Bug fixes and UI polish"
+```
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\publish_github_release.ps1 -SetVersion 1.2.0+5 -Token "<github token>"
+```
 
 Authentication:
 
@@ -66,35 +104,41 @@ Authentication:
 - Fallback: set `GITHUB_TOKEN` or `GH_TOKEN`
 - Interactive fallback: enter a token in `publish_github_release.bat`
 
-Optional parameters for PowerShell:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\publish_github_release.ps1 -ReleaseNotes "Bug fixes and UI polish" -Token "<github token>"
-```
-
-Manual steps if needed:
-
-1. Update `pubspec.yaml` version.
-2. Run `flutter pub get` if needed.
-3. Run `.\scripts\build_release.ps1`.
-4. Commit changes.
-5. Create tag `v<version>`.
-6. Push commit and tag.
-7. Create a GitHub Release from that tag.
-8. Upload `dist\DDLReminder-windows-release.zip`.
-
 ## App update behavior
 
 - The app checks GitHub latest release.
-- It compares the current installed version with the latest tag.
+- The local app version is resolved as `version+buildNumber`.
+- The app compares the full version against the latest release tag.
 - If a newer version exists, it runs `scripts\update_from_github.ps1`.
-- The updater replaces the current app directory contents and restarts the app.
+
+The updater now uses a safer workflow:
+
+- download into a temp directory
+- extract into a temp directory
+- validate the package layout before touching the installed app
+- copy into staging and validate again
+- stop the running app only after validation succeeds
+- back up the current install
+- install the staged package
+- roll back automatically if installation fails
+- write updater logs to `%TEMP%\DDLReminder-updater\update.log`
+
+## Manual steps if needed
+
+1. Update `pubspec.yaml` version, or run `.\scripts\bump_version.ps1`.
+2. Run `.\scripts\build_release.ps1`.
+3. Commit changes.
+4. Create tag `v<version>`.
+5. Push commit and tag.
+6. Create a GitHub Release from that tag.
+7. Upload `dist\DDLReminder-windows-release.zip`.
 
 ## Compatibility note
 
 - The updater assumes the distributed app directory contains:
   - `DDLReminder.exe`
   - Flutter runtime files
+  - `data\flutter_assets`
   - `scripts\update_from_github.ps1`
 
 If you change the distribution structure, update the updater script and this document together.
