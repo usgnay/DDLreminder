@@ -198,6 +198,11 @@ class UpdateService {
       mode: ProcessStartMode.detached,
       runInShell: false,
     );
+
+    // Once the detached updater is running, exit the current app so the
+    // installer can replace the executable without relying on a later kill.
+    await Future<void>.delayed(const Duration(milliseconds: 300));
+    exit(0);
   }
 
   String _normalizeVersion(String raw) {
