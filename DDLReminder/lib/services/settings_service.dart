@@ -1,24 +1,28 @@
 import 'package:flutter/foundation.dart';
 
 import '../models/app_settings.dart';
-import 'storage_service.dart';
+import '../repositories/settings_repository.dart';
 
 class SettingsService extends ValueNotifier<AppSettings> {
-  SettingsService(this._storage) : super(AppSettings.defaults());
+  SettingsService(this._repository) : super(AppSettings.defaults());
 
-  final StorageService _storage;
+  final SettingsRepository _repository;
 
   Future<void> load() async {
-    value = await _storage.readSettings();
+    value = await _repository.readSettings();
   }
 
   Future<void> update(AppSettings next) async {
     value = next;
-    await _storage.writeSettings(next);
-    await _storage.cleanupBackgroundImageCache(activePath: next.backgroundImagePath);
+    await _repository.writeSettings(next);
+    await _repository.cleanupBackgroundImageCache(
+      activePath: next.backgroundImagePath,
+    );
   }
 
-  Future<String> cacheBackgroundImage(String sourcePath) => _storage.cacheBackgroundImage(sourcePath);
+  Future<String> cacheBackgroundImage(String sourcePath) =>
+      _repository.cacheBackgroundImage(sourcePath);
 
-  Future<void> cleanupBackgroundImageCache() => _storage.cleanupBackgroundImageCache(activePath: value.backgroundImagePath);
+  Future<void> cleanupBackgroundImageCache() => _repository
+      .cleanupBackgroundImageCache(activePath: value.backgroundImagePath);
 }

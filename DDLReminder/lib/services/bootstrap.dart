@@ -2,8 +2,12 @@ import 'dart:io';
 
 import 'package:path_provider/path_provider.dart';
 
+import '../database/app_database.dart';
 import '../models/app_settings.dart';
-import '../models/task.dart';
+import '../repositories/isar_settings_repository.dart';
+import '../repositories/isar_task_repository.dart';
+import '../repositories/json_settings_repository.dart';
+import '../repositories/json_task_repository.dart';
 import 'autostart_service.dart';
 import 'font_service.dart';
 import 'settings_service.dart';
@@ -42,12 +46,26 @@ Future<ServiceContainer> bootstrapApp() async {
     settingsFile: File('${dataDir.path}/settings.json'),
     dataDir: dataDir,
   );
+  final jsonSettingsRepository = JsonSettingsRepository(storage);
+  final jsonTaskRepository = JsonTaskRepository(storage);
+  final database = await AppDatabase.open(directory: dataDir.path);
+  final settingsRepository = IsarSettingsRepository(
+    database,
+    jsonSettingsRepository,
+  );
+  final taskRepository = IsarTaskRepository(database);
+  await _migrateJsonDataIfNeeded(
+    taskRepository: taskRepository,
+    settingsRepository: settingsRepository,
+    jsonTaskRepository: jsonTaskRepository,
+    jsonSettingsRepository: jsonSettingsRepository,
+  );
 
-  final settingsService = SettingsService(storage);
+  final settingsService = SettingsService(settingsRepository);
   await settingsService.load();
   await settingsService.cleanupBackgroundImageCache();
 
-  final taskService = TaskService(storage);
+  final taskService = TaskService(taskRepository);
   await taskService.load();
 
   final autostartService = AutostartService();
@@ -69,23 +87,28 @@ Future<ServiceContainer> bootstrapApp() async {
   );
 }
 
-List<Task> filterDueSoon(Iterable<Task> tasks, AppSettings settings, DateTime today) {
-  return tasks
-      .where((task) {
-        if (!task.isRecurring && task.completed) {
-          return false;
-        }
-        final threshold = task.isRecurring
-            ? (task.recurrenceReminderDays ??
-                (task.recurrenceType == RecurrenceType.weekly
-                    ? settings.weeklyReminderDays
-                    : settings.monthlyReminderDays))
-            : settings.reminderThresholdDays;
-        final diff = task.daysLeft(today);
-        if (task.isRecurring && diff < 0) {
-          return false;
-        }
-        return diff <= threshold;
-      })
-      .toList(growable: false);
+Future<void> _migrateJsonDataIfNeeded({
+  required IsarTaskRepository taskRepository,
+  required IsarSettingsRepository settingsRepository,
+  required JsonTaskRepository jsonTaskRepository,
+  required JsonSettingsRepository jsonSettingsRepository,
+}) async {
+  final existingTasks = await taskRepository.readTasks();
+  if (existingTasks.isEmpty) {
+    final legacyTasks = await jsonTaskRepository.readTasks();
+    if (legacyTasks.isNotEmpty) {
+      await taskRepository.writeTasks(legacyTasks);
+    }
+  }
+
+  final existingSettings = await settingsRepository.readSettings();
+  final defaults = AppSettings.defaults();
+  final shouldMigrateSettings =
+      existingSettings.toJson().toString() == defaults.toJson().toString();
+  if (shouldMigrateSettings) {
+    final legacySettings = await jsonSettingsRepository.readSettings();
+    if (legacySettings.toJson().toString() != defaults.toJson().toString()) {
+      await settingsRepository.writeSettings(legacySettings);
+    }
+  }
 }

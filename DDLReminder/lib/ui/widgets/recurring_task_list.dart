@@ -226,7 +226,7 @@ class _RecurringRow extends StatelessWidget {
         return labels[index];
       case RecurrenceType.monthly:
         final day = (task.recurrenceValue ?? 1).clamp(1, 31);
-        return language == AppLanguage.zh ? '每月$day' : 'M$day';
+        return language == AppLanguage.zh ? '每月$day日' : 'M$day';
       case RecurrenceType.none:
         return '';
     }

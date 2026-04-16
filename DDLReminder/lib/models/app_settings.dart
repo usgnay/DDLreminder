@@ -29,7 +29,8 @@ extension AppLanguageX on AppLanguage {
   String get displayName => this == AppLanguage.zh ? '中文' : 'English';
   String get storageKey => this == AppLanguage.zh ? 'zh' : 'en';
 
-  static AppLanguage parse(String? raw) => raw == 'en' ? AppLanguage.en : AppLanguage.zh;
+  static AppLanguage parse(String? raw) =>
+      raw == 'en' ? AppLanguage.en : AppLanguage.zh;
 }
 
 extension AppFontFamilyX on AppFontFamily {
@@ -89,13 +90,16 @@ extension AppFontFamilyX on AppFontFamily {
 extension BackgroundModeX on BackgroundMode {
   String get storageKey => this == BackgroundMode.image ? 'image' : 'color';
 
-  static BackgroundMode parse(String? raw) => raw == 'image' ? BackgroundMode.image : BackgroundMode.color;
+  static BackgroundMode parse(String? raw) =>
+      raw == 'image' ? BackgroundMode.image : BackgroundMode.color;
 }
 
 extension BackgroundImageFitX on BackgroundImageFit {
-  String get storageKey => this == BackgroundImageFit.contain ? 'contain' : 'cover';
+  String get storageKey =>
+      this == BackgroundImageFit.contain ? 'contain' : 'cover';
 
-  static BackgroundImageFit parse(String? raw) => raw == 'contain' ? BackgroundImageFit.contain : BackgroundImageFit.cover;
+  static BackgroundImageFit parse(String? raw) =>
+      raw == 'contain' ? BackgroundImageFit.contain : BackgroundImageFit.cover;
 }
 
 extension BackgroundImageAnchorX on BackgroundImageAnchor {
@@ -172,7 +176,8 @@ extension BackgroundImageAnchorX on BackgroundImageAnchor {
 extension CloseActionX on CloseAction {
   String get storageKey => this == CloseAction.exitApp ? 'exit' : 'tray';
 
-  static CloseAction parse(String? raw) => raw == 'exit' ? CloseAction.exitApp : CloseAction.minimizeToTray;
+  static CloseAction parse(String? raw) =>
+      raw == 'exit' ? CloseAction.exitApp : CloseAction.minimizeToTray;
 }
 
 class AppSettings {
@@ -204,6 +209,11 @@ class AppSettings {
     required this.showCloseConfirmDialog,
     required this.closeAction,
     required this.headerTitleMaxWidth,
+    required this.mobileFollowSystemOverlay,
+    required this.mobileSystemOverlayOpacity,
+    required this.mobileAppBarColorValue,
+    required this.mobileEntryReminderEnabled,
+    required this.mobileReminderLeadHours,
   });
 
   final int reminderThresholdDays;
@@ -233,6 +243,11 @@ class AppSettings {
   final bool showCloseConfirmDialog;
   final CloseAction closeAction;
   final double headerTitleMaxWidth;
+  final bool mobileFollowSystemOverlay;
+  final double mobileSystemOverlayOpacity;
+  final int mobileAppBarColorValue;
+  final bool mobileEntryReminderEnabled;
+  final int mobileReminderLeadHours;
 
   factory AppSettings.defaults() {
     return AppSettings(
@@ -263,6 +278,11 @@ class AppSettings {
       showCloseConfirmDialog: true,
       closeAction: CloseAction.minimizeToTray,
       headerTitleMaxWidth: 220,
+      mobileFollowSystemOverlay: true,
+      mobileSystemOverlayOpacity: .18,
+      mobileAppBarColorValue: const Color(0xFFF3F4F6).value,
+      mobileEntryReminderEnabled: true,
+      mobileReminderLeadHours: 3,
     );
   }
 
@@ -294,80 +314,145 @@ class AppSettings {
     bool? showCloseConfirmDialog,
     CloseAction? closeAction,
     double? headerTitleMaxWidth,
+    bool? mobileFollowSystemOverlay,
+    double? mobileSystemOverlayOpacity,
+    int? mobileAppBarColorValue,
+    bool? mobileEntryReminderEnabled,
+    int? mobileReminderLeadHours,
   }) {
     return AppSettings(
-      reminderThresholdDays: reminderThresholdDays ?? this.reminderThresholdDays,
+      reminderThresholdDays:
+          reminderThresholdDays ?? this.reminderThresholdDays,
       autoLaunch: autoLaunch ?? this.autoLaunch,
       textColorValue: textColorValue ?? this.textColorValue,
       backgroundColorValue: backgroundColorValue ?? this.backgroundColorValue,
       panelColorValue: panelColorValue ?? this.panelColorValue,
       surfaceOpacity: surfaceOpacity ?? this.surfaceOpacity,
       backgroundMode: backgroundMode ?? this.backgroundMode,
-      backgroundImagePath: identical(backgroundImagePath, _unsetValue) ? this.backgroundImagePath : backgroundImagePath as String?,
+      backgroundImagePath: identical(backgroundImagePath, _unsetValue)
+          ? this.backgroundImagePath
+          : backgroundImagePath as String?,
       backgroundImageFit: backgroundImageFit ?? this.backgroundImageFit,
-      backgroundImageAnchor: backgroundImageAnchor ?? this.backgroundImageAnchor,
-      backgroundImageFocusX: backgroundImageFocusX ?? this.backgroundImageFocusX,
-      backgroundImageFocusY: backgroundImageFocusY ?? this.backgroundImageFocusY,
-      backgroundImageOpacity: backgroundImageOpacity ?? this.backgroundImageOpacity,
-      backgroundImageOverlayOpacity: backgroundImageOverlayOpacity ?? this.backgroundImageOverlayOpacity,
-      backgroundImageOverlayColorValue: backgroundImageOverlayColorValue ?? this.backgroundImageOverlayColorValue,
-      urgencyTintColorValue: urgencyTintColorValue ?? this.urgencyTintColorValue,
-      urgencyOverlayOpacity: urgencyOverlayOpacity ?? this.urgencyOverlayOpacity,
+      backgroundImageAnchor:
+          backgroundImageAnchor ?? this.backgroundImageAnchor,
+      backgroundImageFocusX:
+          backgroundImageFocusX ?? this.backgroundImageFocusX,
+      backgroundImageFocusY:
+          backgroundImageFocusY ?? this.backgroundImageFocusY,
+      backgroundImageOpacity:
+          backgroundImageOpacity ?? this.backgroundImageOpacity,
+      backgroundImageOverlayOpacity:
+          backgroundImageOverlayOpacity ?? this.backgroundImageOverlayOpacity,
+      backgroundImageOverlayColorValue:
+          backgroundImageOverlayColorValue ??
+          this.backgroundImageOverlayColorValue,
+      urgencyTintColorValue:
+          urgencyTintColorValue ?? this.urgencyTintColorValue,
+      urgencyOverlayOpacity:
+          urgencyOverlayOpacity ?? this.urgencyOverlayOpacity,
       slogan: slogan ?? this.slogan,
       showRecurringPanel: showRecurringPanel ?? this.showRecurringPanel,
       weeklyReminderDays: weeklyReminderDays ?? this.weeklyReminderDays,
       monthlyReminderDays: monthlyReminderDays ?? this.monthlyReminderDays,
       language: language ?? this.language,
       fontFamily: fontFamily ?? this.fontFamily,
-      customFontFamily: identical(customFontFamily, _unsetValue) ? this.customFontFamily : customFontFamily as String?,
-      showCloseConfirmDialog: showCloseConfirmDialog ?? this.showCloseConfirmDialog,
+      customFontFamily: identical(customFontFamily, _unsetValue)
+          ? this.customFontFamily
+          : customFontFamily as String?,
+      showCloseConfirmDialog:
+          showCloseConfirmDialog ?? this.showCloseConfirmDialog,
       closeAction: closeAction ?? this.closeAction,
       headerTitleMaxWidth: headerTitleMaxWidth ?? this.headerTitleMaxWidth,
+      mobileFollowSystemOverlay:
+          mobileFollowSystemOverlay ?? this.mobileFollowSystemOverlay,
+      mobileSystemOverlayOpacity:
+          mobileSystemOverlayOpacity ?? this.mobileSystemOverlayOpacity,
+      mobileAppBarColorValue:
+          mobileAppBarColorValue ?? this.mobileAppBarColorValue,
+      mobileEntryReminderEnabled:
+          mobileEntryReminderEnabled ?? this.mobileEntryReminderEnabled,
+      mobileReminderLeadHours:
+          mobileReminderLeadHours ?? this.mobileReminderLeadHours,
     );
   }
 
   factory AppSettings.fromJson(Map<String, dynamic> json) {
     final imagePath = (json['backgroundImagePath'] as String?)?.trim();
-    final parsedAnchor = BackgroundImageAnchorX.parse(json['backgroundImageAnchor'] as String?);
-    final reminderThresholdDays = ((json['reminderThresholdDays'] as int?) ?? 3).clamp(1, 14) as int;
-    final surfaceOpacity = (((json['surfaceOpacity'] as num?)?.toDouble()) ?? .92).clamp(.35, 1.0).toDouble();
-    final backgroundImageFocusX = ((((json['backgroundImageFocusX'] as num?)?.toDouble()) ?? parsedAnchor.alignment.x)
-            .clamp(-1.0, 1.0))
-        .toDouble();
-    final backgroundImageFocusY = ((((json['backgroundImageFocusY'] as num?)?.toDouble()) ?? parsedAnchor.alignment.y)
-            .clamp(-1.0, 1.0))
-        .toDouble();
-    final backgroundImageOpacity = (((json['backgroundImageOpacity'] as num?)?.toDouble()) ?? .78)
-        .clamp(.05, 1.0)
-        .toDouble();
-    final backgroundImageOverlayOpacity = (((json['backgroundImageOverlayOpacity'] as num?)?.toDouble()) ?? .12)
-        .clamp(.0, .45)
-        .toDouble();
-    final urgencyOverlayOpacity = (((json['urgencyOverlayOpacity'] as num?)?.toDouble()) ?? .10)
-        .clamp(.0, .35)
-        .toDouble();
-    final weeklyReminderDays = ((json['weeklyReminderDays'] as int?) ?? 2).clamp(1, 7) as int;
-    final monthlyReminderDays = ((json['monthlyReminderDays'] as int?) ?? 3).clamp(1, 7) as int;
-    final headerTitleMaxWidth = (((json['headerTitleMaxWidth'] as num?)?.toDouble()) ?? 220).clamp(140.0, 320.0).toDouble();
+    final parsedAnchor = BackgroundImageAnchorX.parse(
+      json['backgroundImageAnchor'] as String?,
+    );
+    final reminderThresholdDays =
+        ((json['reminderThresholdDays'] as int?) ?? 3).clamp(1, 14) as int;
+    final surfaceOpacity =
+        (((json['surfaceOpacity'] as num?)?.toDouble()) ?? .92)
+            .clamp(.35, 1.0)
+            .toDouble();
+    final backgroundImageFocusX =
+        ((((json['backgroundImageFocusX'] as num?)?.toDouble()) ??
+                    parsedAnchor.alignment.x)
+                .clamp(-1.0, 1.0))
+            .toDouble();
+    final backgroundImageFocusY =
+        ((((json['backgroundImageFocusY'] as num?)?.toDouble()) ??
+                    parsedAnchor.alignment.y)
+                .clamp(-1.0, 1.0))
+            .toDouble();
+    final backgroundImageOpacity =
+        (((json['backgroundImageOpacity'] as num?)?.toDouble()) ?? .78)
+            .clamp(.05, 1.0)
+            .toDouble();
+    final backgroundImageOverlayOpacity =
+        (((json['backgroundImageOverlayOpacity'] as num?)?.toDouble()) ?? .12)
+            .clamp(.0, .45)
+            .toDouble();
+    final urgencyOverlayOpacity =
+        (((json['urgencyOverlayOpacity'] as num?)?.toDouble()) ?? .10)
+            .clamp(.0, .35)
+            .toDouble();
+    final weeklyReminderDays =
+        ((json['weeklyReminderDays'] as int?) ?? 2).clamp(1, 7) as int;
+    final monthlyReminderDays =
+        ((json['monthlyReminderDays'] as int?) ?? 3).clamp(1, 7) as int;
+    final headerTitleMaxWidth =
+        (((json['headerTitleMaxWidth'] as num?)?.toDouble()) ?? 220)
+            .clamp(140.0, 320.0)
+            .toDouble();
+    final mobileSystemOverlayOpacity =
+        (((json['mobileSystemOverlayOpacity'] as num?)?.toDouble()) ?? .18)
+            .clamp(.0, .45)
+            .toDouble();
+    final mobileReminderLeadHours =
+        ((json['mobileReminderLeadHours'] as int?) ?? 3).clamp(1, 12) as int;
     return AppSettings(
       reminderThresholdDays: reminderThresholdDays,
       autoLaunch: json['autoLaunch'] as bool? ?? false,
       textColorValue: json['textColorValue'] as int? ?? Colors.black.value,
-      backgroundColorValue: json['backgroundColorValue'] as int? ?? const Color(0xFFF5F5F7).value,
+      backgroundColorValue:
+          json['backgroundColorValue'] as int? ?? const Color(0xFFF5F5F7).value,
       panelColorValue: json['panelColorValue'] as int? ?? Colors.white.value,
       surfaceOpacity: surfaceOpacity,
       backgroundMode: BackgroundModeX.parse(json['backgroundMode'] as String?),
-      backgroundImagePath: (imagePath == null || imagePath.isEmpty) ? null : imagePath,
-      backgroundImageFit: BackgroundImageFitX.parse(json['backgroundImageFit'] as String?),
+      backgroundImagePath: (imagePath == null || imagePath.isEmpty)
+          ? null
+          : imagePath,
+      backgroundImageFit: BackgroundImageFitX.parse(
+        json['backgroundImageFit'] as String?,
+      ),
       backgroundImageAnchor: parsedAnchor,
       backgroundImageFocusX: backgroundImageFocusX,
       backgroundImageFocusY: backgroundImageFocusY,
       backgroundImageOpacity: backgroundImageOpacity,
       backgroundImageOverlayOpacity: backgroundImageOverlayOpacity,
-      backgroundImageOverlayColorValue: json['backgroundImageOverlayColorValue'] as int? ?? Colors.black.value,
-      urgencyTintColorValue: json['urgencyTintColorValue'] as int? ?? const Color(0xFFC98A72).value,
+      backgroundImageOverlayColorValue:
+          json['backgroundImageOverlayColorValue'] as int? ??
+          Colors.black.value,
+      urgencyTintColorValue:
+          json['urgencyTintColorValue'] as int? ??
+          const Color(0xFFC98A72).value,
       urgencyOverlayOpacity: urgencyOverlayOpacity,
-      slogan: (json['slogan'] as String?)?.trim().isNotEmpty == true ? (json['slogan'] as String).trim() : '专注每一天',
+      slogan: (json['slogan'] as String?)?.trim().isNotEmpty == true
+          ? (json['slogan'] as String).trim()
+          : '专注每一天',
       showRecurringPanel: json['showRecurringPanel'] as bool? ?? true,
       weeklyReminderDays: weeklyReminderDays,
       monthlyReminderDays: monthlyReminderDays,
@@ -377,6 +462,15 @@ class AppSettings {
       showCloseConfirmDialog: json['showCloseConfirmDialog'] as bool? ?? true,
       closeAction: CloseActionX.parse(json['closeAction'] as String?),
       headerTitleMaxWidth: headerTitleMaxWidth,
+      mobileFollowSystemOverlay:
+          json['mobileFollowSystemOverlay'] as bool? ?? true,
+      mobileSystemOverlayOpacity: mobileSystemOverlayOpacity,
+      mobileAppBarColorValue:
+          json['mobileAppBarColorValue'] as int? ??
+          const Color(0xFFF3F4F6).value,
+      mobileEntryReminderEnabled:
+          json['mobileEntryReminderEnabled'] as bool? ?? true,
+      mobileReminderLeadHours: mobileReminderLeadHours,
     );
   }
 
@@ -409,14 +503,21 @@ class AppSettings {
       'showCloseConfirmDialog': showCloseConfirmDialog,
       'closeAction': closeAction.storageKey,
       'headerTitleMaxWidth': headerTitleMaxWidth,
+      'mobileFollowSystemOverlay': mobileFollowSystemOverlay,
+      'mobileSystemOverlayOpacity': mobileSystemOverlayOpacity,
+      'mobileAppBarColorValue': mobileAppBarColorValue,
+      'mobileEntryReminderEnabled': mobileEntryReminderEnabled,
+      'mobileReminderLeadHours': mobileReminderLeadHours,
     };
   }
 
   Color get textColor => Color(textColorValue);
   Color get backgroundColor => Color(backgroundColorValue);
   Color get panelColor => Color(panelColorValue);
-  Color get backgroundImageOverlayColor => Color(backgroundImageOverlayColorValue);
+  Color get backgroundImageOverlayColor =>
+      Color(backgroundImageOverlayColorValue);
   Color get urgencyTintColor => Color(urgencyTintColorValue);
+  Color get mobileAppBarColor => Color(mobileAppBarColorValue);
 
   String? get resolvedFontFamily {
     if (fontFamily == AppFontFamily.custom) {

@@ -3,19 +3,20 @@ import 'dart:collection';
 import 'package:flutter/foundation.dart';
 
 import '../models/task.dart';
-import 'storage_service.dart';
+import '../repositories/task_repository.dart';
 
 class TaskService extends ChangeNotifier {
-  TaskService(this._storage, {DateTime Function()? clock}) : _clock = clock ?? DateTime.now;
+  TaskService(this._repository, {DateTime Function()? clock})
+    : _clock = clock ?? DateTime.now;
 
-  final StorageService _storage;
+  final TaskRepository _repository;
   final DateTime Function() _clock;
   List<Task> _tasks = const [];
 
   UnmodifiableListView<Task> get tasks => UnmodifiableListView(_tasks);
 
   Future<void> load() async {
-    _tasks = await _storage.readTasks();
+    _tasks = await _repository.readTasks();
     _sort();
   }
 
@@ -37,14 +38,20 @@ class TaskService extends ChangeNotifier {
 
   Future<void> toggle(String taskId) async {
     _tasks = _tasks
-        .map((task) => task.id == taskId ? task.copyWith(completed: !task.completed) : task)
+        .map(
+          (task) => task.id == taskId
+              ? task.copyWith(completed: !task.completed)
+              : task,
+        )
         .toList(growable: false);
     _sort();
     await _persist();
   }
 
   Future<void> update(Task updated) async {
-    _tasks = _tasks.map((task) => task.id == updated.id ? updated : task).toList(growable: false);
+    _tasks = _tasks
+        .map((task) => task.id == updated.id ? updated : task)
+        .toList(growable: false);
     _sort();
     await _persist();
   }
@@ -59,7 +66,7 @@ class TaskService extends ChangeNotifier {
     _sort();
   }
 
-  Future<void> _persist() => _storage.writeTasks(_tasks);
+  Future<void> _persist() => _repository.writeTasks(_tasks);
 
   void _sort() {
     final now = _clock();

@@ -137,7 +137,7 @@ class TaskTile extends StatelessWidget {
 
   String _buildSubtitle(int daysLeft) {
     if (task.isRecurring) {
-      return tr(language, '剩余 $daysLeft 天', '$daysLeft day(s) left');
+      return tr(language, '还剩 $daysLeft 天', '$daysLeft day(s) left');
     }
     if (task.completed) {
       return tr(language, '已完成', 'Completed');
@@ -149,7 +149,7 @@ class TaskTile extends StatelessWidget {
         'Overdue ${daysLeft.abs()} day(s)',
       );
     }
-    return tr(language, '剩余 $daysLeft 天', '$daysLeft day(s) left');
+    return tr(language, '还剩 $daysLeft 天', '$daysLeft day(s) left');
   }
 
   String? _recurrenceText(Task task) {

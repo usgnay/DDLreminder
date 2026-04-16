@@ -45,7 +45,7 @@ class _AddTaskDialogState extends State<_AddTaskDialog> {
   Widget build(BuildContext context) {
     final lang = widget.language;
     return AlertDialog(
-      title: Text(tr(lang, '新建任务', 'New Task')),
+      title: Text(tr(lang, '新建任务', 'New task')),
       content: SingleChildScrollView(
         child: Form(
           key: _formKey,
@@ -59,13 +59,13 @@ class _AddTaskDialogState extends State<_AddTaskDialog> {
                 ),
                 onChanged: (_) => setState(() {}),
                 validator: (value) => (value == null || value.trim().isEmpty)
-                    ? tr(lang, '请输入任务名称', 'Please enter a task name')
+                    ? tr(lang, '请输入任务标题', 'Please enter a task title')
                     : null,
               ),
               TextFormField(
                 controller: _descriptionController,
                 decoration: InputDecoration(
-                  labelText: tr(lang, '任务描述', 'Description'),
+                  labelText: tr(lang, '任务说明', 'Description'),
                 ),
                 minLines: 2,
                 maxLines: 3,
@@ -79,8 +79,8 @@ class _AddTaskDialogState extends State<_AddTaskDialog> {
                 subtitle: Text(
                   tr(
                     lang,
-                    '用于每周或每月重复提醒',
-                    'Use for weekly or monthly reminders',
+                    '适用于每周或每月重复出现的任务。',
+                    'Use this for tasks that repeat weekly or monthly.',
                   ),
                 ),
               ),
@@ -152,8 +152,8 @@ class _AddTaskDialogState extends State<_AddTaskDialog> {
           subtitle: Text(
             tr(
               language,
-              '开启后在任务标题下方显示具体时间',
-              'Show the exact due time under the task title',
+              '开启后会在任务标题下显示具体截止时间。',
+              'Show the exact due time under the task title.',
             ),
           ),
         ),
@@ -198,10 +198,9 @@ class _AddTaskDialogState extends State<_AddTaskDialog> {
             ),
           ],
           onChanged: (value) {
-            if (value == null) {
-              return;
+            if (value != null) {
+              setState(() => _recurrenceType = value);
             }
-            setState(() => _recurrenceType = value);
           },
         ),
         const SizedBox(height: 8),
@@ -213,8 +212,8 @@ class _AddTaskDialogState extends State<_AddTaskDialog> {
         Text(
           tr(
             language,
-            '周期任务不需要单独设置截止日，系统会根据周期自动计算下一次截止日期。',
-            'Recurring tasks do not need a separate deadline. The app calculates the next due date from the cycle.',
+            '周期任务无需单独设置截止日期，应用会根据周期自动计算下一次截止时间。',
+            'Recurring tasks do not need a separate deadline. The app calculates the next due date automatically.',
           ),
           style: Theme.of(context).textTheme.bodySmall,
         ),
@@ -264,10 +263,9 @@ class _AddTaskDialogState extends State<_AddTaskDialog> {
           )
           .toList(growable: false),
       onChanged: (value) {
-        if (value == null) {
-          return;
+        if (value != null) {
+          setState(() => _monthlyDay = value);
         }
-        setState(() => _monthlyDay = value);
       },
     );
   }

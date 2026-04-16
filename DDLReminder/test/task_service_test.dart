@@ -1,6 +1,6 @@
 import 'package:ddl_reminder/models/app_settings.dart';
 import 'package:ddl_reminder/models/task.dart';
-import 'package:ddl_reminder/services/bootstrap.dart';
+import 'package:ddl_reminder/services/task_filters.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
