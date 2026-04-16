@@ -1,4 +1,4 @@
-﻿import 'dart:io';
+import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -115,7 +115,7 @@ class _SettingsDialogState extends State<_SettingsDialog> {
     ).toDouble();
 
     return AlertDialog(
-      title: Text(tr(lang, '??', 'Settings')),
+      title: Text(tr(lang, '设置', 'Settings')),
       content: ConstrainedBox(
         constraints: BoxConstraints(maxWidth: 440, maxHeight: maxDialogHeight),
         child: SingleChildScrollView(
@@ -130,7 +130,7 @@ class _SettingsDialogState extends State<_SettingsDialog> {
                     final version = snapshot.data ?? '--';
                     return ListTile(
                       contentPadding: EdgeInsets.zero,
-                      title: Text(tr(lang, '????', 'Current version')),
+                      title: Text(tr(lang, '当前版本', 'Current version')),
                       subtitle: Text(version),
                       trailing: FilledButton.tonal(
                         onPressed: _checkingUpdate
@@ -144,7 +144,7 @@ class _SettingsDialogState extends State<_SettingsDialog> {
                                   strokeWidth: 2,
                                 ),
                               )
-                            : Text(tr(lang, '????', 'Check for updates')),
+                            : Text(tr(lang, '检查更新', 'Check for updates')),
                       ),
                     );
                   },
@@ -155,9 +155,9 @@ class _SettingsDialogState extends State<_SettingsDialog> {
                   onChanged: (value) => setState(
                     () => _working = _working.copyWith(autoLaunch: value),
                   ),
-                  title: Text(tr(lang, '?????', 'Launch at startup')),
+                  title: Text(tr(lang, '开机自启动', 'Launch at startup')),
                   subtitle: Text(
-                    tr(lang, '???????????', 'Desktop installations only'),
+                    tr(lang, '仅适用于桌面安装版本', 'Desktop installations only'),
                   ),
                 ),
                 SwitchListTile(
@@ -167,11 +167,11 @@ class _SettingsDialogState extends State<_SettingsDialog> {
                       showCloseConfirmDialog: value,
                     ),
                   ),
-                  title: Text(tr(lang, '?????????', 'Show close confirmation')),
+                  title: Text(tr(lang, '显示关闭确认', 'Show close confirmation')),
                   subtitle: Text(
                     tr(
                       lang,
-                      '????????????????????????????',
+                      '关闭窗口时询问是最小化到托盘还是直接退出。',
                       'Ask whether to minimize to tray or exit when closing the window.',
                     ),
                   ),
@@ -179,7 +179,7 @@ class _SettingsDialogState extends State<_SettingsDialog> {
                 DropdownButtonFormField<CloseAction>(
                   initialValue: _working.closeAction,
                   decoration: InputDecoration(
-                    labelText: tr(lang, '??????', 'Default close action'),
+                    labelText: tr(lang, '默认关闭行为', 'Default close action'),
                   ),
                   items: CloseAction.values
                       .map(
@@ -201,7 +201,7 @@ class _SettingsDialogState extends State<_SettingsDialog> {
                 DropdownButtonFormField<AppLanguage>(
                   initialValue: _working.language,
                   decoration: InputDecoration(
-                    labelText: tr(lang, '????', 'Interface language'),
+                    labelText: tr(lang, '界面语言', 'Interface language'),
                   ),
                   items: AppLanguage.values
                       .map(
@@ -223,7 +223,7 @@ class _SettingsDialogState extends State<_SettingsDialog> {
                 DropdownButtonFormField<AppFontFamily>(
                   initialValue: _working.fontFamily,
                   decoration: InputDecoration(
-                    labelText: tr(lang, '????', 'Interface font'),
+                    labelText: tr(lang, '界面字体', 'Interface font'),
                   ),
                   items: AppFontFamily.values
                       .map(
@@ -265,7 +265,7 @@ class _SettingsDialogState extends State<_SettingsDialog> {
                       child: Text(
                         tr(
                           lang,
-                          '?????????????????????????',
+                          '当前平台无法枚举系统字体，请手动输入字体名称。',
                           'System fonts cannot be listed on this platform. Enter the font name manually.',
                         ),
                         style: Theme.of(context).textTheme.bodyMedium,
@@ -273,14 +273,14 @@ class _SettingsDialogState extends State<_SettingsDialog> {
                     ),
                 ],
                 ListTile(
-                  title: Text(tr(lang, '???????', 'Reminder threshold (days)')),
+                  title: Text(tr(lang, '提醒阈值（天）', 'Reminder threshold (days)')),
                   subtitle: Slider(
                     value: _working.reminderThresholdDays.toDouble(),
                     min: 1,
                     max: 14,
                     divisions: 13,
                     label: lang == AppLanguage.zh
-                        ? '${_working.reminderThresholdDays} ?'
+                        ? '${_working.reminderThresholdDays} 天'
                         : '${_working.reminderThresholdDays} day(s)',
                     onChanged: (value) => setState(
                       () => _working = _working.copyWith(
@@ -295,11 +295,11 @@ class _SettingsDialogState extends State<_SettingsDialog> {
                     () =>
                         _working = _working.copyWith(showRecurringPanel: value),
                   ),
-                  title: Text(tr(lang, '????????', 'Show recurring task list')),
+                  title: Text(tr(lang, '显示周期任务列表', 'Show recurring task list')),
                   subtitle: Text(
                     tr(
                       lang,
-                      '????????/??????',
+                      '在任务列表上方显示每周和每月循环任务',
                       'Display weekly/monthly tasks above the list',
                     ),
                   ),
@@ -307,7 +307,7 @@ class _SettingsDialogState extends State<_SettingsDialog> {
                 ),
                 ListTile(
                   title: Text(
-                    tr(lang, '???????????', 'Weekly reminder lead time (days)'),
+                    tr(lang, '每周任务提前提醒（天）', 'Weekly reminder lead time (days)'),
                   ),
                   subtitle: Slider(
                     value: weeklyReminderValue,
@@ -316,7 +316,7 @@ class _SettingsDialogState extends State<_SettingsDialog> {
                     divisions: (_recurringReminderMax - _recurringReminderMin)
                         .round(),
                     label: lang == AppLanguage.zh
-                        ? '${weeklyReminderValue.round()} ?'
+                        ? '${weeklyReminderValue.round()} 天'
                         : '${weeklyReminderValue.round()} day(s)',
                     onChanged: _working.showRecurringPanel
                         ? (value) => setState(
@@ -331,7 +331,7 @@ class _SettingsDialogState extends State<_SettingsDialog> {
                   title: Text(
                     tr(
                       lang,
-                      '???????????',
+                      '每月任务提前提醒（天）',
                       'Monthly reminder lead time (days)',
                     ),
                   ),
@@ -342,7 +342,7 @@ class _SettingsDialogState extends State<_SettingsDialog> {
                     divisions: (_recurringReminderMax - _recurringReminderMin)
                         .round(),
                     label: lang == AppLanguage.zh
-                        ? '${monthlyReminderValue.round()} ?'
+                        ? '${monthlyReminderValue.round()} 天'
                         : '${monthlyReminderValue.round()} day(s)',
                     onChanged: _working.showRecurringPanel
                         ? (value) => setState(
@@ -356,14 +356,14 @@ class _SettingsDialogState extends State<_SettingsDialog> {
                 TextField(
                   controller: _sloganController,
                   decoration: InputDecoration(
-                    labelText: tr(lang, '????', 'Slogan'),
+                    labelText: tr(lang, '标语', 'Slogan'),
                   ),
                   onChanged: (value) =>
                       _working = _working.copyWith(slogan: value.trim()),
                 ),
                 const SizedBox(height: 12),
                 _buildHexColorField(
-                  label: tr(lang, '???? (HEX)', 'Text color (HEX)'),
+                  label: tr(lang, '文字颜色（HEX）', 'Text color (HEX)'),
                   controller: _textColorController,
                   onValidColor: (value) => setState(
                     () => _working = _working.copyWith(textColorValue: value),
@@ -374,7 +374,7 @@ class _SettingsDialogState extends State<_SettingsDialog> {
                 _buildBackgroundModeSection(lang),
                 const SizedBox(height: 8),
                 _buildHexColorField(
-                  label: tr(lang, '?????? (HEX)', 'Panel color (HEX)'),
+                  label: tr(lang, '面板颜色（HEX）', 'Panel color (HEX)'),
                   controller: _panelColorController,
                   onValidColor: (value) => setState(
                     () => _working = _working.copyWith(panelColorValue: value),
@@ -384,7 +384,7 @@ class _SettingsDialogState extends State<_SettingsDialog> {
                 const SizedBox(height: 8),
                 ListTile(
                   contentPadding: EdgeInsets.zero,
-                  title: Text(tr(lang, '???????', 'Window surface opacity')),
+                  title: Text(tr(lang, '窗口面板透明度', 'Window surface opacity')),
                   subtitle: Slider(
                     value: _working.surfaceOpacity,
                     min: .55,
@@ -398,7 +398,7 @@ class _SettingsDialogState extends State<_SettingsDialog> {
                 ),
                 ListTile(
                   contentPadding: EdgeInsets.zero,
-                  title: Text(tr(lang, '???????', 'Header title width')),
+                  title: Text(tr(lang, '标题区域宽度', 'Header title width')),
                   subtitle: Slider(
                     value: _working.headerTitleMaxWidth,
                     min: 140,
@@ -414,7 +414,7 @@ class _SettingsDialogState extends State<_SettingsDialog> {
                 ),
                 const SizedBox(height: 8),
                 _buildHexColorField(
-                  label: tr(lang, '?????? (HEX)', 'Urgency tint color (HEX)'),
+                  label: tr(lang, '紧急提醒色（HEX）', 'Urgency tint color (HEX)'),
                   controller: _urgencyTintColorController,
                   onValidColor: (value) => setState(
                     () => _working = _working.copyWith(
@@ -425,7 +425,7 @@ class _SettingsDialogState extends State<_SettingsDialog> {
                 ),
                 ListTile(
                   contentPadding: EdgeInsets.zero,
-                  title: Text(tr(lang, '??????', 'Urgency overlay strength')),
+                  title: Text(tr(lang, '紧急遮罩强度', 'Urgency overlay strength')),
                   subtitle: Slider(
                     value: _working.urgencyOverlayOpacity,
                     min: .04,
@@ -447,7 +447,7 @@ class _SettingsDialogState extends State<_SettingsDialog> {
       actions: [
         TextButton(
           onPressed: _saving ? null : () => Navigator.pop(context),
-          child: Text(tr(lang, '??', 'Cancel')),
+          child: Text(tr(lang, '取消', 'Cancel')),
         ),
         FilledButton(
           onPressed: _saving ? null : _save,
@@ -457,7 +457,7 @@ class _SettingsDialogState extends State<_SettingsDialog> {
                   height: 16,
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
-              : Text(tr(lang, '??', 'Save')),
+              : Text(tr(lang, '保存', 'Save')),
         ),
       ],
     );
@@ -474,16 +474,16 @@ class _SettingsDialogState extends State<_SettingsDialog> {
         DropdownButtonFormField<BackgroundMode>(
           initialValue: _working.backgroundMode,
           decoration: InputDecoration(
-            labelText: tr(language, '????', 'Background mode'),
+            labelText: tr(language, '背景模式', 'Background mode'),
           ),
           items: [
             DropdownMenuItem(
               value: BackgroundMode.color,
-              child: Text(tr(language, '????', 'Solid color')),
+              child: Text(tr(language, '纯色背景', 'Solid color')),
             ),
             DropdownMenuItem(
               value: BackgroundMode.image,
-              child: Text(tr(language, '????', 'Image background')),
+              child: Text(tr(language, '图片背景', 'Image background')),
             ),
           ],
           onChanged: (value) {
@@ -497,7 +497,7 @@ class _SettingsDialogState extends State<_SettingsDialog> {
         const SizedBox(height: 8),
         if (!usingImage)
           _buildHexColorField(
-            label: tr(language, '???? (HEX)', 'Background color (HEX)'),
+            label: tr(language, '背景颜色（HEX）', 'Background color (HEX)'),
             controller: _backgroundColorController,
             onValidColor: (value) => setState(
               () => _working = _working.copyWith(backgroundColorValue: value),
@@ -505,7 +505,7 @@ class _SettingsDialogState extends State<_SettingsDialog> {
             language: language,
           ),
         if (usingImage) ...[
-          Text(tr(language, '????', 'Background image')),
+          Text(tr(language, '背景图片', 'Background image')),
           const SizedBox(height: 6),
           Row(
             children: [
@@ -513,7 +513,7 @@ class _SettingsDialogState extends State<_SettingsDialog> {
                 child: Text(
                   hasImage
                       ? imagePath
-                      : tr(language, '?????', 'No image selected'),
+                      : tr(language, '未选择图片', 'No image selected'),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: Theme.of(context).textTheme.bodySmall,
@@ -523,7 +523,7 @@ class _SettingsDialogState extends State<_SettingsDialog> {
               TextButton.icon(
                 onPressed: _pickBackgroundImage,
                 icon: const Icon(Icons.image_outlined),
-                label: Text(tr(language, '??', 'Choose')),
+                label: Text(tr(language, '选择', 'Choose')),
               ),
               if (hasImage)
                 TextButton(
@@ -531,7 +531,7 @@ class _SettingsDialogState extends State<_SettingsDialog> {
                     () =>
                         _working = _working.copyWith(backgroundImagePath: null),
                   ),
-                  child: Text(tr(language, '??', 'Clear')),
+                  child: Text(tr(language, '清除', 'Clear')),
                 ),
             ],
           ),
@@ -539,16 +539,16 @@ class _SettingsDialogState extends State<_SettingsDialog> {
           DropdownButtonFormField<BackgroundImageFit>(
             initialValue: _working.backgroundImageFit,
             decoration: InputDecoration(
-              labelText: tr(language, '????', 'Image fit'),
+              labelText: tr(language, '图片适配', 'Image fit'),
             ),
             items: [
               DropdownMenuItem(
                 value: BackgroundImageFit.cover,
-                child: Text(tr(language, '?????', 'Cover')),
+                child: Text(tr(language, '覆盖', 'Cover')),
               ),
               DropdownMenuItem(
                 value: BackgroundImageFit.contain,
-                child: Text(tr(language, '????', 'Contain')),
+                child: Text(tr(language, '完整显示', 'Contain')),
               ),
             ],
             onChanged: (value) {
@@ -563,44 +563,44 @@ class _SettingsDialogState extends State<_SettingsDialog> {
           DropdownButtonFormField<BackgroundImageAnchor>(
             initialValue: _working.backgroundImageAnchor,
             decoration: InputDecoration(
-              labelText: tr(language, '????', 'Focus preset'),
+              labelText: tr(language, '焦点预设', 'Focus preset'),
             ),
             items: [
               DropdownMenuItem(
                 value: BackgroundImageAnchor.center,
-                child: Text(tr(language, '??', 'Center')),
+                child: Text(tr(language, '居中', 'Center')),
               ),
               DropdownMenuItem(
                 value: BackgroundImageAnchor.top,
-                child: Text(tr(language, '??', 'Top')),
+                child: Text(tr(language, '顶部', 'Top')),
               ),
               DropdownMenuItem(
                 value: BackgroundImageAnchor.bottom,
-                child: Text(tr(language, '??', 'Bottom')),
+                child: Text(tr(language, '底部', 'Bottom')),
               ),
               DropdownMenuItem(
                 value: BackgroundImageAnchor.left,
-                child: Text(tr(language, '??', 'Left')),
+                child: Text(tr(language, '左侧', 'Left')),
               ),
               DropdownMenuItem(
                 value: BackgroundImageAnchor.right,
-                child: Text(tr(language, '??', 'Right')),
+                child: Text(tr(language, '右侧', 'Right')),
               ),
               DropdownMenuItem(
                 value: BackgroundImageAnchor.topLeft,
-                child: Text(tr(language, '??', 'Top left')),
+                child: Text(tr(language, '左上', 'Top left')),
               ),
               DropdownMenuItem(
                 value: BackgroundImageAnchor.topRight,
-                child: Text(tr(language, '??', 'Top right')),
+                child: Text(tr(language, '右上', 'Top right')),
               ),
               DropdownMenuItem(
                 value: BackgroundImageAnchor.bottomLeft,
-                child: Text(tr(language, '??', 'Bottom left')),
+                child: Text(tr(language, '左下', 'Bottom left')),
               ),
               DropdownMenuItem(
                 value: BackgroundImageAnchor.bottomRight,
-                child: Text(tr(language, '??', 'Bottom right')),
+                child: Text(tr(language, '右下', 'Bottom right')),
               ),
             ],
             onChanged: (value) {
@@ -624,7 +624,7 @@ class _SettingsDialogState extends State<_SettingsDialog> {
           const SizedBox(height: 8),
           ListTile(
             contentPadding: EdgeInsets.zero,
-            title: Text(tr(language, '??????', 'Background image opacity')),
+            title: Text(tr(language, '背景图片透明度', 'Background image opacity')),
             subtitle: Slider(
               value: _working.backgroundImageOpacity,
               min: .05,
@@ -644,7 +644,7 @@ class _SettingsDialogState extends State<_SettingsDialog> {
           _buildHexColorField(
             label: tr(
               language,
-              '??????? (HEX)',
+              '背景遮罩颜色（HEX）',
               'Background overlay color (HEX)',
             ),
             controller: _backgroundOverlayColorController,
@@ -658,7 +658,7 @@ class _SettingsDialogState extends State<_SettingsDialog> {
           const SizedBox(height: 8),
           ListTile(
             contentPadding: EdgeInsets.zero,
-            title: Text(tr(language, '???????', 'Background overlay strength')),
+            title: Text(tr(language, '背景遮罩强度', 'Background overlay strength')),
             subtitle: Slider(
               value: _working.backgroundImageOverlayOpacity,
               min: .0,
@@ -687,7 +687,7 @@ class _SettingsDialogState extends State<_SettingsDialog> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(tr(language, '????????', 'Drag preview to set focus')),
+        Text(tr(language, '拖动预览图以设置焦点', 'Drag preview to set focus')),
         const SizedBox(height: 8),
         Center(
           child: GestureDetector(
@@ -723,7 +723,7 @@ class _SettingsDialogState extends State<_SettingsDialog> {
                         color: Colors.black12,
                         child: Center(
                           child: Text(
-                            tr(language, '?????', 'Preview unavailable'),
+                            tr(language, '无法预览', 'Preview unavailable'),
                           ),
                         ),
                       ),
@@ -823,19 +823,19 @@ class _SettingsDialogState extends State<_SettingsDialog> {
       await showDialog<void>(
         context: context,
         builder: (_) => AlertDialog(
-          title: Text(tr(language, '??????', 'Update check failed')),
+          title: Text(tr(language, '检查更新失败', 'Update check failed')),
           content: Text(
             result.message ??
                 tr(
                   language,
-                  '????????',
+                  '无法获取发布信息。',
                   'Release information was unavailable.',
                 ),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: Text(tr(language, '??', 'OK')),
+              child: Text(tr(language, '确定', 'OK')),
             ),
           ],
         ),
@@ -847,18 +847,18 @@ class _SettingsDialogState extends State<_SettingsDialog> {
       await showDialog<void>(
         context: context,
         builder: (_) => AlertDialog(
-          title: Text(tr(language, '????????', 'Already up to date')),
+          title: Text(tr(language, '已是最新版本', 'Already up to date')),
           content: Text(
             tr(
               language,
-              '???? ${result.currentVersion} ????????',
+              '当前版本 ${result.currentVersion} 已经是最新版本。',
               'Current version ${result.currentVersion} is already the latest.',
             ),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: Text(tr(language, '??', 'OK')),
+              child: Text(tr(language, '确定', 'OK')),
             ),
           ],
         ),
@@ -869,22 +869,22 @@ class _SettingsDialogState extends State<_SettingsDialog> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: Text(tr(language, '??????', 'Update available')),
+        title: Text(tr(language, '发现新版本', 'Update available')),
         content: Text(
           tr(
             language,
-            '???? ${result.currentVersion}????? ${result.release!.version}?\n??????????????',
+            '当前版本 ${result.currentVersion}，最新版本 ${result.release!.version}。\n确认后应用将关闭并开始更新。',
             'Current version ${result.currentVersion}, latest version ${result.release!.version}.\nThe app will close and begin updating after confirmation.',
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: Text(tr(language, '??', 'Cancel')),
+            child: Text(tr(language, '取消', 'Cancel')),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            child: Text(tr(language, '????', 'Update now')),
+            child: Text(tr(language, '立即更新', 'Update now')),
           ),
         ],
       ),
@@ -932,9 +932,9 @@ class _SettingsDialogState extends State<_SettingsDialog> {
   String _closeActionLabel(CloseAction action, AppLanguage language) {
     switch (action) {
       case CloseAction.minimizeToTray:
-        return tr(language, '??????', 'Minimize to tray');
+        return tr(language, '最小化到托盘', 'Minimize to tray');
       case CloseAction.exitApp:
-        return tr(language, '????', 'Exit directly');
+        return tr(language, '直接退出', 'Exit directly');
     }
   }
 
@@ -989,7 +989,7 @@ class _SettingsDialogState extends State<_SettingsDialog> {
               onPressed: () =>
                   _openColorPicker(controller, onValidColor, language),
               icon: const Icon(Icons.palette_outlined),
-              label: Text(tr(language, '?????', 'Palette picker')),
+              label: Text(tr(language, '调色板选择', 'Palette picker')),
             ),
           ],
         ),
@@ -1001,7 +1001,7 @@ class _SettingsDialogState extends State<_SettingsDialog> {
     if (_parseHex(value) == null) {
       return tr(
         language,
-        '??? 6 ? HEX ???? FFFFFF',
+        '请输入 6 位 HEX 颜色，例如 FFFFFF',
         'Enter a 6-digit HEX color, e.g. FFFFFF',
       );
     }
@@ -1050,7 +1050,7 @@ class _SettingsDialogState extends State<_SettingsDialog> {
       builder: (dialogContext) {
         final size = MediaQuery.of(dialogContext).size;
         return AlertDialog(
-          title: Text(tr(language, '????', 'Pick a color')),
+          title: Text(tr(language, '选择颜色', 'Pick a color')),
           content: ConstrainedBox(
             constraints: BoxConstraints(
               maxWidth: 380,
@@ -1068,11 +1068,11 @@ class _SettingsDialogState extends State<_SettingsDialog> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext),
-              child: Text(tr(language, '??', 'Cancel')),
+              child: Text(tr(language, '取消', 'Cancel')),
             ),
             FilledButton(
               onPressed: () => Navigator.pop(dialogContext, temp),
-              child: Text(tr(language, '??', 'OK')),
+              child: Text(tr(language, '确定', 'OK')),
             ),
           ],
         );
@@ -1122,7 +1122,7 @@ class _CustomFontPicker extends StatelessWidget {
           return Text(
             tr(
               language,
-              '??????????????',
+              '加载系统字体失败，请稍后重试。',
               'Failed to load system fonts. Please retry.',
             ),
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
@@ -1132,7 +1132,7 @@ class _CustomFontPicker extends StatelessWidget {
         }
         final fonts = snapshot.data ?? const [];
         if (fonts.isEmpty) {
-          return Text(tr(language, '??????????', 'No system fonts detected.'));
+          return Text(tr(language, '未检测到系统字体。', 'No system fonts detected.'));
         }
         final items = fonts
             .map(
@@ -1150,7 +1150,7 @@ class _CustomFontPicker extends StatelessWidget {
             DropdownMenuItem<String>(
               value: selected,
               child: Text(
-                '${selected!} (${tr(language, '??????', 'missing')})',
+                '${selected!} (${tr(language, '缺失', 'missing')})',
                 overflow: TextOverflow.ellipsis,
               ),
             ),
@@ -1159,14 +1159,14 @@ class _CustomFontPicker extends StatelessWidget {
         return DropdownButtonFormField<String>(
           initialValue: selected?.isNotEmpty == true ? selected : null,
           decoration: InputDecoration(
-            labelText: tr(language, '??????', 'Choose a system font'),
+            labelText: tr(language, '选择系统字体', 'Choose a system font'),
           ),
           items: items,
           isExpanded: true,
           onChanged: onChanged,
           validator: (value) {
             if (value == null || value.isEmpty) {
-              return tr(language, '?????', 'Select a font');
+              return tr(language, '请选择字体', 'Select a font');
             }
             return null;
           },
